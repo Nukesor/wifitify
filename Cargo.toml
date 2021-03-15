@@ -1,0 +1,16 @@
+[package]
+name = "sniff"
+version = "0.1.0"
+authors = ["Arne Beer <contact@arne.beer>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1"
+clap = "3.0.0-beta.2"
+log = "0.4"
+simplelog = { version = "0.9", default-features = false }
+
+pcap = "0.8"
+radiotap = "1.3"
