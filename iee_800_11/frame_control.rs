@@ -1,0 +1,116 @@
+use std::io::Cursor;
+
+use anyhow::{bail, Result};
+use bytes::Buf;
+
+use crate::enums::*;
+
+#[inline]
+pub fn flag_is_set(data: u8, bit: u8) -> bool {
+    if bit == 0 {
+        let mask = 1;
+        (data & mask) > 0
+    } else {
+        let mask = 1 << bit;
+        (data & mask) > 0
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct FrameControl {
+    pub frame_type: FrameType,
+    pub frame_subtype: FrameSubType,
+    pub to_ds: bool,
+    pub from_ds: bool,
+    pub more_flag: bool,
+    pub retry: bool,
+    pub pwr_mgmt: bool,
+    pub more_data: bool,
+    pub wep: bool,
+    pub order: bool,
+}
+
+impl FrameControl {
+    pub fn from_bytes(input: &[u8]) -> Result<FrameControl> {
+        let mut cursor = Cursor::new(input);
+        let version_type_subtype = cursor.get_u8();
+        let flags = cursor.get_u8();
+
+        if FrameControl::protocol_version(version_type_subtype) != 0 {
+            bail!("Unknow protocol version");
+        }
+
+        let frame_type = FrameControl::frame_type(version_type_subtype);
+
+        let frame_subtype = match frame_type {
+            FrameType::Management => FrameControl::frame_subtype(version_type_subtype),
+            FrameType::Data => FrameControl::data_frame_subtype(version_type_subtype),
+            FrameType::Control => FrameControl::frame_subtype(version_type_subtype),
+            FrameType::Unknown => FrameControl::frame_subtype(version_type_subtype),
+        };
+
+        let fc = FrameControl {
+            frame_type,
+            frame_subtype,
+            to_ds: flag_is_set(flags, 0),
+            from_ds: flag_is_set(flags, 1),
+            more_flag: flag_is_set(flags, 2),
+            retry: flag_is_set(flags, 3),
+            pwr_mgmt: flag_is_set(flags, 4),
+            more_data: flag_is_set(flags, 5),
+            wep: flag_is_set(flags, 6),
+            order: flag_is_set(flags, 7),
+        };
+
+        Ok(fc)
+    }
+
+    fn protocol_version(packet: u8) -> u8 {
+        packet & 0b0000_0011
+    }
+
+    fn frame_type(packet: u8) -> FrameType {
+        match (packet & 0b0000_1100) >> 2 {
+            0 => FrameType::Management,
+            1 => FrameType::Control,
+            2 => FrameType::Data,
+            _ => FrameType::Unknown,
+        }
+    }
+
+    fn frame_subtype(packet: u8) -> FrameSubType {
+        match (packet & 0b1111_0000) >> 4 {
+            0 => FrameSubType::AssoReq,
+            1 => FrameSubType::AssoResp,
+            2 => FrameSubType::ReassoReq,
+            3 => FrameSubType::ReassoResp,
+            4 => FrameSubType::ProbeReq,
+            5 => FrameSubType::ProbeResp,
+            8 => FrameSubType::Beacon,
+            9 => FrameSubType::Atim,
+            10 => FrameSubType::Disasso,
+            11 => FrameSubType::Auth,
+            12 => FrameSubType::Deauth,
+            _ => FrameSubType::UnHandled,
+        }
+    }
+
+    fn data_frame_subtype(packet: u8) -> FrameSubType {
+        match (packet & 0b1111_0000) >> 4 {
+            0 => FrameSubType::Data,
+            1 => FrameSubType::DataCfAck,
+            2 => FrameSubType::DataCfPull,
+            3 => FrameSubType::DataCfAckCfPull,
+            4 => FrameSubType::NullData,
+            5 => FrameSubType::CfAck,
+            6 => FrameSubType::CfPull,
+            7 => FrameSubType::CfAckCfPull,
+            8 => FrameSubType::QoS,
+            10 => FrameSubType::QoSCfPull,
+            11 => FrameSubType::QoSCfAckCfPull,
+            12 => FrameSubType::QoSNullData,
+            13 => FrameSubType::Reserved,
+            _ => FrameSubType::UnHandled,
+        }
+    }
+}
