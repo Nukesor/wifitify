@@ -4,7 +4,6 @@ use std::io::Read;
 use anyhow::Result;
 use bytes::{Buf, Bytes, IntoBuf};
 
-use crate::enums::*;
 use crate::frame_address::*;
 use crate::frame_control::*;
 use crate::info::*;
