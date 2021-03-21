@@ -8,6 +8,7 @@ pub enum FrameType {
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FrameSubType {
+    // Management subtypes
     AssoReq,
     AssoResp,
     ReassoReq,
@@ -19,6 +20,24 @@ pub enum FrameSubType {
     Disasso,
     Auth,
     Deauth,
+
+    // Control subtypes
+    Trigger,
+    Tack,
+    BeamformingReportPoll,
+    NdpAnnouncement,
+    ControlFrameExtension,
+    ControlWrapper,
+    BlockAckRequest,
+    BlockAck,
+    PsPoll,
+    RTS,
+    CTS,
+    ACK,
+    CfEnd,
+    CfEndCfAck,
+
+    // Data subtypes
     Data,
     DataCfAck,
     DataCfPull,
@@ -31,6 +50,8 @@ pub enum FrameSubType {
     QoSCfPull,
     QoSCfAckCfPull,
     QoSNullData,
+
+    // Special subtypes
     Reserved,
     UnHandled,
 }

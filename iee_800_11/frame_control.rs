@@ -16,6 +16,27 @@ pub fn flag_is_set(data: u8, bit: u8) -> bool {
     }
 }
 
+/// The very first two bytes of every frame contain the FrameControl header.
+/// https://en.wikipedia.org/wiki/802.11_Frame_Types
+///
+/// The bytes are structured as follows.
+/// The bytes will be interpreted from left to right.
+///
+/// First byte
+/// bit 0-1: Version
+/// bit 2-3: FrameType
+/// bit 4-7: FrameSubType
+///
+/// 8 Flags (second byte)
+/// bit_0 `To DS`: Set if the frame is to be sent by the AP to the distribution system.
+/// bit_1 `From DS`: Set if the frame is from the distribution system.
+/// bit_2 `More Frag`: Set if this frame is a fragment of a bigger frame and there are more fragments to follow.
+/// bit_3 `Retry`: Set if this frame is a retransmission, maybe through the loss of an ACK.
+/// bit_4 `Power Mgmt`: indicates what power mode ('save' or 'active') the station is to be in once the frame has been sent.
+/// bit_5 `More Data`: set by the AP to indicate that more frames are destined to a particular station that may be in power save mode.
+///                     These frames will be buffered at the AP ready for the station should it decide to become 'active'.
+/// bit_6 `WEP`: Set if WEP is being used to encrypt the body of the frame
+/// bit_7 `Order`: Set if the frame is being sent according to the 'Strictly Ordered Class'
 #[derive(Copy, Clone, Debug)]
 pub struct FrameControl {
     pub frame_type: FrameType,
@@ -31,24 +52,32 @@ pub struct FrameControl {
 }
 
 impl FrameControl {
+    /// This function parses a given two-byte frame-control header.
     pub fn from_bytes(input: &[u8]) -> Result<FrameControl> {
         let mut cursor = Cursor::new(input);
-        let version_type_subtype = cursor.get_u8();
-        let flags = cursor.get_u8();
 
+        // The first byte contains all protocol and FrameType information
+        let version_type_subtype = cursor.get_u8();
+
+        // The first two bits specify the protocol version
+        // Until now, this has always been 0 and is expected to be 0
         if FrameControl::protocol_version(version_type_subtype) != 0 {
             bail!("Unknow protocol version");
         }
 
+        // The next two bits determine what kind of frame we got
         let frame_type = FrameControl::frame_type(version_type_subtype);
 
+        // The next 4 bits are then used to determine the frame sub-type.
+        // The sub-type depends on the current FrameType
         let frame_subtype = match frame_type {
-            FrameType::Management => FrameControl::frame_subtype(version_type_subtype),
+            FrameType::Management => FrameControl::management_frame_subtype(version_type_subtype),
+            FrameType::Control => FrameControl::control_frame_subtype(version_type_subtype),
             FrameType::Data => FrameControl::data_frame_subtype(version_type_subtype),
-            FrameType::Control => FrameControl::frame_subtype(version_type_subtype),
-            FrameType::Unknown => FrameControl::frame_subtype(version_type_subtype),
+            FrameType::Unknown => FrameSubType::UnHandled,
         };
 
+        let flags = cursor.get_u8();
         let fc = FrameControl {
             frame_type,
             frame_subtype,
@@ -69,6 +98,7 @@ impl FrameControl {
         packet & 0b0000_0011
     }
 
+    /// Get the FrameType from bit 3-4
     fn frame_type(packet: u8) -> FrameType {
         match (packet & 0b0000_1100) >> 2 {
             0 => FrameType::Management,
@@ -78,7 +108,9 @@ impl FrameControl {
         }
     }
 
-    fn frame_subtype(packet: u8) -> FrameSubType {
+    /// Get the FrameSubType from bit 4-7 under the assumption
+    /// that this is a management frame.
+    fn management_frame_subtype(packet: u8) -> FrameSubType {
         match (packet & 0b1111_0000) >> 4 {
             0 => FrameSubType::AssoReq,
             1 => FrameSubType::AssoResp,
@@ -95,6 +127,32 @@ impl FrameControl {
         }
     }
 
+    /// Get the FrameSubType from bit 4-7 under the assumption
+    /// that this is a control frame.
+    fn control_frame_subtype(packet: u8) -> FrameSubType {
+        match (packet & 0b1111_0000) >> 4 {
+            0 => FrameSubType::Reserved,
+            1 => FrameSubType::Reserved,
+            2 => FrameSubType::Trigger,
+            3 => FrameSubType::Tack,
+            4 => FrameSubType::BeamformingReportPoll,
+            5 => FrameSubType::NdpAnnouncement,
+            6 => FrameSubType::ControlFrameExtension,
+            7 => FrameSubType::ControlWrapper,
+            8 => FrameSubType::BlockAckRequest,
+            9 => FrameSubType::BlockAck,
+            10 => FrameSubType::PsPoll,
+            11 => FrameSubType::RTS,
+            12 => FrameSubType::CTS,
+            13 => FrameSubType::ACK,
+            14 => FrameSubType::CfEnd,
+            15 => FrameSubType::CfEndCfAck,
+            _ => FrameSubType::UnHandled,
+        }
+    }
+
+    /// Get the FrameSubType from bit 4-7 under the assumption
+    /// that this is a data frame.
     fn data_frame_subtype(packet: u8) -> FrameSubType {
         match (packet & 0b1111_0000) >> 4 {
             0 => FrameSubType::Data,
