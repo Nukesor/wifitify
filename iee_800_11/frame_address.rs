@@ -1,12 +1,14 @@
 use anyhow::Result;
 use bytes::{Buf, Bytes, IntoBuf};
 
+/// This is our representation of a MAC-address
 #[derive(Clone, Debug)]
 pub struct MACField {
     pub addr: String,
 }
 
 impl MACField {
+    /// Get the mac address from a 6 byte slice.
     pub fn from_slice(s: &[u8]) -> MACField {
         let addr = format!(
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
@@ -25,6 +27,39 @@ pub struct FrameAddresses {
     pub addr4: MACField,
 }
 
+/// Bytes 4-29 contain all important address information.
+/// byte 4-9: Address 1
+/// byte 10-15: Address 2
+/// byte 16-21: Address 3
+/// byte 22-23: Sequence Control
+/// byte 24-29: Address 4
+///
+/// Which address is used in which way, depends on two flags in the FrameControl header.
+///
+/// Address 1:
+/// The recipient station address on the BSS.
+/// If `to_ds` is set, this is the AP address.
+/// If `from_ds` is set then this is the station address
+///
+/// Address 1:
+/// The transmitter station address on the BSS.
+/// If `from_ds` is set, this is the AP address.
+/// If `to_ds` is set then this is the station address.
+///
+/// Address 3:
+/// If Address 1 contains the destination address then Address 3 will contain the source address.
+/// Similarly, if Address 2 contains the source address then Address 3 will contain the destination address.
+///
+/// Address 4:
+/// This is only set if a Wireless Distribution System (WDS) is being used (with AP to AP communication)
+/// Address 1 contains the receiving AP address.
+/// Address 2 contains the transmitting AP address.
+/// Address 3 contains the destination station address.
+/// Address 4 contains the source station address.
+///
+/// Sequence Control:
+/// Contains the FragmentNumber and SequenceNumber that define the main frame and the number of fragments in the frame.
+///
 impl FrameAddresses {
     pub fn from_bytes(s: &[u8]) -> Result<FrameAddresses> {
         use std::io::Read;

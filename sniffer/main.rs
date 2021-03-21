@@ -71,7 +71,7 @@ fn handle_packet(packet: Packet) -> Result<()> {
     //    ))?;
     //}
 
-    println!("");
+    println!("Got header: {:?}", header);
 
     Ok(())
 }
