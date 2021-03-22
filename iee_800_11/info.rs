@@ -38,6 +38,7 @@ impl Info for Beacon {
 
         let ssid = SSID::from_bytes(cursor.bytes());
         cursor.advance(ssid.ssid_len + 2); // 2 accounts for Id + Len
+
         let supported_rates = supported_rates(cursor.bytes());
         cursor.advance(supported_rates.len() + 2); // 2 accounts for Id + Len
         let info = get_info(cursor.bytes());

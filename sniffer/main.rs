@@ -14,6 +14,7 @@ mod cli;
 use cli::CliArguments;
 
 fn main() -> Result<()> {
+    better_panic::install();
     // Parse commandline options.
     let opt = CliArguments::parse();
 
@@ -71,7 +72,14 @@ fn handle_packet(packet: Packet) -> Result<()> {
     //    ))?;
     //}
 
-    println!("Got header: {:?}", header);
+    //println!("Got header: {:?}", header);
+    println!(
+        "Type {:?} ({:?}) from {} to {}",
+        header.frame_control.frame_type,
+        header.frame_control.frame_subtype,
+        header.src().to_string(),
+        header.dest().to_string()
+    );
 
     Ok(())
 }
