@@ -228,3 +228,42 @@ pub enum FrameSubType {
     Reserved,
     UnHandled,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn flag_for_bit(bit: u8, frame_control: &FrameControl) -> bool {
+        match bit {
+            0 => frame_control.to_ds,
+            1 => frame_control.from_ds,
+            2 => frame_control.more_frag,
+            3 => frame_control.retry,
+            4 => frame_control.pwr_mgmt,
+            5 => frame_control.more_data,
+            6 => frame_control.wep,
+            7 => frame_control.order,
+            _ => panic!("Unhandled bit {}", bit),
+        }
+    }
+
+    #[test]
+    /// Set each flag once and ensure that only that bit is set.
+    /// For this, we shift a byte with value `1` up to seven times to the left.
+    fn test_flags() {
+        for bit in 0..7 {
+            let second_byte = 0b0000_0001 << bit;
+            let bytes = [0b0000_0000, second_byte];
+            let frame_control = FrameControl::from_bytes(&bytes).unwrap();
+
+            // All bits except the currently selected bit should be false.
+            for check_bit in 0..7 {
+                if bit == check_bit {
+                    assert!(flag_for_bit(check_bit, &frame_control));
+                } else {
+                    assert!(!flag_for_bit(check_bit, &frame_control));
+                }
+            }
+        }
+    }
+}
