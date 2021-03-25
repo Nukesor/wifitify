@@ -112,7 +112,7 @@ impl FrameControl {
     /// Get the FrameSubType from bit 4-7 under the assumption
     /// that this is a management frame.
     fn management_frame_subtype(byte: u8) -> FrameSubType {
-        match (byte & 0b1111_0000) >> 4 {
+        match byte >> 4 {
             0 => FrameSubType::AssoReq,
             1 => FrameSubType::AssoResp,
             2 => FrameSubType::ReassoReq,
@@ -131,7 +131,7 @@ impl FrameControl {
     /// Get the FrameSubType from bit 4-7 under the assumption
     /// that this is a control frame.
     fn control_frame_subtype(byte: u8) -> FrameSubType {
-        match (byte & 0b1111_0000) >> 4 {
+        match byte >> 4 {
             0 => FrameSubType::Reserved,
             1 => FrameSubType::Reserved,
             2 => FrameSubType::Trigger,
@@ -155,7 +155,7 @@ impl FrameControl {
     /// Get the FrameSubType from bit 4-7 under the assumption
     /// that this is a data frame.
     fn data_frame_subtype(byte: u8) -> FrameSubType {
-        match (byte & 0b1111_0000) >> 4 {
+        match byte >> 4 {
             0 => FrameSubType::Data,
             1 => FrameSubType::DataCfAck,
             2 => FrameSubType::DataCfPull,

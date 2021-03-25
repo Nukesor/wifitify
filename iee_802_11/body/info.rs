@@ -9,6 +9,7 @@ pub enum BodyInformation {
     AssociationRequest(AssociationRequest),
     AssociationResponse(AssociationResponse),
     UnHandled(bool),
+    Empty,
 }
 
 pub trait Info {

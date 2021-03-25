@@ -61,9 +61,6 @@ pub struct Header {
 
 impl Header {
     pub fn from_bytes(input: &[u8]) -> Result<(Header, &[u8])> {
-        if input.len() < 30 {
-            bail!("    Header with less than 31 bytes:\n    {:?}", input);
-        }
         // Parse the frame control header
         let frame_control = FrameControl::from_bytes(&input[0..2])?;
 

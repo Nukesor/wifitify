@@ -18,7 +18,11 @@ impl Frame {
     pub fn from_bytes(input: &[u8]) -> Result<Frame> {
         let (header, body_bytes) = Header::from_bytes(input)?;
 
-        let body = Frame::parse_body(&header.frame_control, &body_bytes);
+        let body = if !body_bytes.is_empty() {
+            Frame::parse_body(&header.frame_control, &body_bytes)
+        } else {
+            BodyInformation::Empty
+        };
 
         Ok(Frame { header, body })
     }
