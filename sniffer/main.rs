@@ -1,11 +1,8 @@
-use std::io::Cursor;
-
 use anyhow::{bail, Context, Result};
-use bytes::Buf;
 use clap::Clap;
-use iee_800_11::header::Header;
+use iee_802_11::Frame;
 use log::{debug, error, info};
-use pcap::{Device, Packet};
+use pcap::Device;
 use radiotap::Radiotap;
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
@@ -31,7 +28,7 @@ fn main() -> Result<()> {
 
     let mut capture = device.open().context("Failed to open device")?;
 
-    // Set pcap Datalink type to IEE 800.11
+    // Set pcap Datalink type to IEE 802.11
     // http://www.tcpdump.org/linktypes.html
     // DLT_IEEE802_11_RADIO = 127
     capture
@@ -39,29 +36,29 @@ fn main() -> Result<()> {
         .context("Failed to set wifi datalink type")?;
 
     while let Ok(packet) = capture.next() {
-        if let Err(err) = handle_packet(packet) {
-            error!("Got error handling packet: {:?}", err);
-        }
+        // At first, we look at the
+        let radiotap = match Radiotap::from_bytes(packet.data) {
+            Ok(radiotap) => radiotap,
+            Err(error) => {
+                error!(
+                    "Couldn't read packet data with Radiotap: {:?}, error {:?}",
+                    &packet.data, error
+                );
+                continue;
+            }
+        };
+
+        let payload = &packet.data[radiotap.header.length..];
+        if let Err(err) = handle_ieee_802_11_payload(payload) {
+            debug!("Error during frame handling:\n{:?}", err);
+        };
     }
 
     Ok(())
 }
 
-fn handle_packet(packet: Packet) -> Result<()> {
-    debug!("received packet! {:?}", packet);
-    let radiotap_data = match Radiotap::from_bytes(packet.data) {
-        Ok(radiotap) => radiotap,
-        Err(error) => bail!(
-            "Couldn't read packet data with Radiotap: {:?}, error {:?}",
-            &packet.data,
-            error
-        ),
-    };
-
-    let mut packet_cursor = Cursor::new(packet.data);
-    packet_cursor.advance(radiotap_data.header.length);
-
-    let header = Header::from_bytes(&packet_cursor.bytes())?;
+fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
+    let frame = Frame::from_bytes(bytes)?;
     //if let Some(ap) = mapper.map(tap_data, dot11_header, people) {
     //    term.write_line(&format!(
     //        "Access point {} signal {} current channel {} {}",
@@ -72,13 +69,12 @@ fn handle_packet(packet: Packet) -> Result<()> {
     //    ))?;
     //}
 
-    //println!("Got header: {:?}", header);
-    println!(
+    info!(
         "Type {:?} ({:?}) from {} to {}",
-        header.frame_control.frame_type,
-        header.frame_control.frame_subtype,
-        header.src().to_string(),
-        header.dest().to_string()
+        frame.header.frame_control.frame_type,
+        frame.header.frame_control.frame_subtype,
+        frame.header.src().to_string(),
+        frame.header.dest().to_string()
     );
 
     Ok(())

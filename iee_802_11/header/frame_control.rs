@@ -3,8 +3,11 @@ use std::io::Cursor;
 use anyhow::{bail, Result};
 use bytes::Buf;
 
+use super::types::*;
+
 #[inline]
-pub fn flag_is_set(data: u8, bit: u8) -> bool {
+/// Mini helper to check, whether a bit is set or not.
+fn flag_is_set(data: u8, bit: u8) -> bool {
     if bit == 0 {
         let mask = 1;
         (data & mask) > 0
@@ -92,13 +95,13 @@ impl FrameControl {
         Ok(fc)
     }
 
-    fn protocol_version(packet: u8) -> u8 {
-        packet & 0b0000_0011
+    fn protocol_version(byte: u8) -> u8 {
+        byte & 0b0000_0011
     }
 
     /// Get the FrameType from bit 3-4
-    fn frame_type(packet: u8) -> FrameType {
-        match (packet & 0b0000_1100) >> 2 {
+    fn frame_type(byte: u8) -> FrameType {
+        match (byte & 0b0000_1100) >> 2 {
             0 => FrameType::Management,
             1 => FrameType::Control,
             2 => FrameType::Data,
@@ -108,8 +111,8 @@ impl FrameControl {
 
     /// Get the FrameSubType from bit 4-7 under the assumption
     /// that this is a management frame.
-    fn management_frame_subtype(packet: u8) -> FrameSubType {
-        match (packet & 0b1111_0000) >> 4 {
+    fn management_frame_subtype(byte: u8) -> FrameSubType {
+        match (byte & 0b1111_0000) >> 4 {
             0 => FrameSubType::AssoReq,
             1 => FrameSubType::AssoResp,
             2 => FrameSubType::ReassoReq,
@@ -127,8 +130,8 @@ impl FrameControl {
 
     /// Get the FrameSubType from bit 4-7 under the assumption
     /// that this is a control frame.
-    fn control_frame_subtype(packet: u8) -> FrameSubType {
-        match (packet & 0b1111_0000) >> 4 {
+    fn control_frame_subtype(byte: u8) -> FrameSubType {
+        match (byte & 0b1111_0000) >> 4 {
             0 => FrameSubType::Reserved,
             1 => FrameSubType::Reserved,
             2 => FrameSubType::Trigger,
@@ -151,8 +154,8 @@ impl FrameControl {
 
     /// Get the FrameSubType from bit 4-7 under the assumption
     /// that this is a data frame.
-    fn data_frame_subtype(packet: u8) -> FrameSubType {
-        match (packet & 0b1111_0000) >> 4 {
+    fn data_frame_subtype(byte: u8) -> FrameSubType {
+        match (byte & 0b1111_0000) >> 4 {
             0 => FrameSubType::Data,
             1 => FrameSubType::DataCfAck,
             2 => FrameSubType::DataCfPull,
@@ -169,64 +172,6 @@ impl FrameControl {
             _ => FrameSubType::UnHandled,
         }
     }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FrameType {
-    Management,
-    Control,
-    Data,
-    Unknown,
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FrameSubType {
-    // Management subtypes
-    AssoReq,
-    AssoResp,
-    ReassoReq,
-    ReassoResp,
-    ProbeReq,
-    ProbeResp,
-    Beacon,
-    Atim,
-    Disasso,
-    Auth,
-    Deauth,
-
-    // Control subtypes
-    Trigger,
-    Tack,
-    BeamformingReportPoll,
-    NdpAnnouncement,
-    ControlFrameExtension,
-    ControlWrapper,
-    BlockAckRequest,
-    BlockAck,
-    PsPoll,
-    RTS,
-    CTS,
-    ACK,
-    CfEnd,
-    CfEndCfAck,
-
-    // Data subtypes
-    Data,
-    DataCfAck,
-    DataCfPull,
-    DataCfAckCfPull,
-    NullData,
-    CfAck,
-    CfPull,
-    CfAckCfPull,
-    QoS,
-    QoSCfPull,
-    QoSCfAckCfPull,
-    QoSNullData,
-
-    // Special subtypes
-    Reserved,
-    UnHandled,
 }
 
 #[cfg(test)]
@@ -265,5 +210,13 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// Create a beacon frame control
+    /// FrameType should be `00` and SubType `1000`
+    /// Remember
+    fn test_beacon() {
+        let bytes = [0b1000_0000, 0b0000_0000];
+        let frame_control = FrameControl::from_bytes(&bytes).unwrap();
     }
 }

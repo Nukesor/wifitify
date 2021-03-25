@@ -1,8 +1,7 @@
 use anyhow::{bail, Result};
 
-use crate::frame_control::*;
-use crate::info::*;
-use crate::mac::*;
+use super::frame_control::*;
+use super::mac::*;
 
 /// **Bytes 0-1**
 ///
@@ -40,16 +39,15 @@ use crate::mac::*;
 /// If Address 1 contains the destination address then Address 3 will contain the source address.
 /// Similarly, if Address 2 contains the source address then Address 3 will contain the destination address.
 ///
+/// Sequence Control:
+/// Contains the FragmentNumber and SequenceNumber that define the main frame and the number of fragments in the frame.
+///
 /// Address 4:
 /// This is only set if a Wireless Distribution System (WDS) is being used (with AP to AP communication)
 /// Address 1 contains the receiving AP address.
 /// Address 2 contains the transmitting AP address.
 /// Address 3 contains the destination station address.
 /// Address 4 contains the source station address.
-///
-/// Sequence Control:
-/// Contains the FragmentNumber and SequenceNumber that define the main frame and the number of fragments in the frame.
-///
 #[derive(Clone, Debug)]
 pub struct Header {
     pub frame_control: FrameControl,
@@ -57,16 +55,14 @@ pub struct Header {
     pub address_1: MacAddress,
     pub address_2: MacAddress,
     pub address_3: MacAddress,
-    pub address_4: MacAddress,
+    pub address_4: Option<MacAddress>,
     pub seq_ctl: [u8; 2],
-    pub info: BodyInformation,
 }
 
 impl Header {
-    pub fn from_bytes(input: &[u8]) -> Result<Header> {
+    pub fn from_bytes(input: &[u8]) -> Result<(Header, &[u8])> {
         if input.len() < 30 {
-            println!("Error {:?}", input);
-            bail!("Got header with less than 31 bytes");
+            bail!("    Header with less than 31 bytes:\n    {:?}", input);
         }
         // Parse the frame control header
         let frame_control = FrameControl::from_bytes(&input[0..2])?;
@@ -83,14 +79,14 @@ impl Header {
         let mut seq_ctl: [u8; 2] = [0; 2];
         seq_ctl.clone_from_slice(&input[22..24]);
 
-        let address_4 = MacAddress::from_slice(&input[24..30]);
-
-        // QoS Control
-        // This is conditional,
-        //let mut dst2: [u8; 2] = [0; 2];
-        //seq_ctl.clone_from_slice(&input[30..32]);
-
-        let body_information = Header::parse_body(&frame_control, &input[30..]);
+        // The forth address is optional
+        // Depending on whether it exists or not, the body begins at byte 24 or byte 30
+        let mut address_4 = None;
+        let mut data = &input[24..];
+        if frame_control.to_ds && frame_control.from_ds {
+            address_4 = Some(MacAddress::from_slice(&input[24..30]));
+            data = &input[30..];
+        }
 
         let header = Header {
             frame_control,
@@ -100,14 +96,17 @@ impl Header {
             address_3,
             address_4,
             seq_ctl,
-            info: body_information,
         };
-        Ok(header)
+
+        Ok((header, data))
     }
 
+    /// Return the mac address of the sender
     pub fn src(&self) -> &MacAddress {
         if self.frame_control.to_ds && self.frame_control.from_ds {
-            &self.address_4
+            // This should be safe.
+            // If both to_ds and from_ds are true, we always read the forth address.
+            self.address_4.as_ref().unwrap()
         } else if self.frame_control.to_ds {
             &self.address_3
         } else if self.frame_control.from_ds {
@@ -117,6 +116,8 @@ impl Header {
         }
     }
 
+    /// Return the mac address of the receiver.
+    /// A full `ff:ff:..` usually indicates a undirected broadcast.
     pub fn dest(&self) -> &MacAddress {
         if self.frame_control.to_ds && self.frame_control.from_ds {
             &self.address_3
@@ -129,6 +130,9 @@ impl Header {
         }
     }
 
+    /// The BSSID for this request.
+    /// In most cases, this is expected to be present.
+    /// The only time it's not, is in a wireless distributed system (WDS).
     pub fn bssid(&self) -> Option<&MacAddress> {
         if self.frame_control.to_ds && self.frame_control.from_ds {
             None
@@ -138,31 +142,6 @@ impl Header {
             Some(&self.address_2)
         } else {
             Some(&self.address_3)
-        }
-    }
-
-    fn parse_body(frame_control: &FrameControl, input: &[u8]) -> BodyInformation {
-        // For now, only management Frames are handled
-        if !matches!(frame_control.frame_type, FrameType::Management) {
-            return BodyInformation::UnHandled(true);
-        }
-
-        // Check which kind of frame sub-type we got
-        match frame_control.frame_subtype {
-            FrameSubType::Beacon => BodyInformation::Beacon(Beacon::from_bytes(input)),
-            FrameSubType::ProbeReq => {
-                BodyInformation::ProbeRequest(ProbeRequest::from_bytes(input))
-            }
-            FrameSubType::ProbeResp => {
-                BodyInformation::ProbeResponse(ProbeResponse::from_bytes(input))
-            }
-            FrameSubType::AssoReq => {
-                BodyInformation::AssociationRequest(AssociationRequest::from_bytes(input))
-            }
-            FrameSubType::AssoResp => {
-                BodyInformation::AssociationResponse(AssociationResponse::from_bytes(input))
-            }
-            _ => BodyInformation::UnHandled(true),
         }
     }
 }

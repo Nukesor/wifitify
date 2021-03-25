@@ -9,8 +9,8 @@ name = "sniffer"
 path = "sniffer/main.rs"
 
 [lib]
-name = "iee_800_11"
-path = "iee_800_11/lib.rs"
+name = "iee_802_11"
+path = "iee_802_11/lib.rs"
 
 [dependencies]
 anyhow = "1"
