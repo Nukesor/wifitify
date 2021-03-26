@@ -111,14 +111,14 @@ impl Header {
 
         // Return early, if there are no bytes left.
         // For instance, this is the case for CTS frame headers.
-        if input.len() == 10 {
+        if input.len() < 16 {
             return Ok((header, &input[10..]));
         }
 
         // Return early, if there are no bytes left.
         // For instance, this is the case for RTS frame headers.
         header.address_2 = Some(MacAddress::from_slice(&input[10..16]));
-        if input.len() == 16 {
+        if input.len() < 24 {
             return Ok((header, &input[16..]));
         }
 
