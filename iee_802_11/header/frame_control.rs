@@ -212,11 +212,15 @@ mod tests {
         }
     }
 
-    /// Create a beacon frame control
+    #[test]
+    /// Create a Management-Beacon FrameControl header
     /// FrameType should be `00` and SubType `1000`
     /// Remember
     fn test_beacon() {
         let bytes = [0b1000_0000, 0b0000_0000];
         let frame_control = FrameControl::from_bytes(&bytes).unwrap();
+
+        assert!(matches!(frame_control.frame_type, FrameType::Management));
+        assert!(matches!(frame_control.frame_subtype, FrameSubType::Beacon));
     }
 }

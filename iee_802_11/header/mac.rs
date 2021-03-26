@@ -3,6 +3,7 @@
 pub struct MacAddress([u8; 6]);
 
 impl MacAddress {
+    /// Get the mac address from a 6 byte slice.
     pub fn from_slice(slice: &[u8]) -> Self {
         let mut address: [u8; 6] = [0; 6];
         address.clone_from_slice(&slice[0..6]);
@@ -10,7 +11,7 @@ impl MacAddress {
         MacAddress(address)
     }
 
-    /// Get the mac address from a 6 byte slice.
+    /// Return the MacAddress' bytes in easily readable Hex-code
     pub fn to_string(&self) -> String {
         format!(
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",

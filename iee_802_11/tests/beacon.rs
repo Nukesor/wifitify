@@ -2,7 +2,6 @@ use iee_802_11::header::Header;
 
 #[test]
 fn test_beacon() {
-    // This is a payload recorded at my home
     let payload = [
         0, 0, 100, 0, 17, 1, 0, 15, 78, 117, 99, 108, 101, 97, 114, 95, 70, 97, 108, 108, 111, 117,
         116, 1, 8, 140, 18, 152, 36, 176, 72, 96, 108, 5, 4, 2, 3, 0, 0, 7, 52, 69, 85, 32, 36, 1,
@@ -16,5 +15,33 @@ fn test_beacon() {
         16, 60, 0, 1, 3, 16, 73, 0, 6, 0, 55, 42, 0, 1, 32, 221, 9, 0, 16, 24, 2, 0, 0, 28, 0, 0,
         221, 24, 0, 80, 242, 2, 1, 1, 132, 0, 3, 164, 0, 0, 39, 164, 0, 0, 66, 67, 94, 0, 98, 50,
         47, 0,
+    ];
+}
+
+fn test_null_data() {
+    let payload = [
+        72, 17, 60, 0, 156, 128, 223, 131, 16, 180, 252, 25, 16, 16, 128, 171, 156, 128, 223, 131,
+        16, 180, 128, 43,
+    ];
+}
+
+fn test_data() {
+    let payload = [];
+}
+
+fn test_CTS() {
+    // 2B FrameControl + 2B Duration + 6B Address1 (Missing CRC)
+    let payload = [196, 0, 246, 14, 224, 62, 68, 8, 195, 239];
+}
+
+fn test_ACK() {
+    // 2B FrameControl + 2B Duration + 6B Address1 (Missing CRC)
+    let payload = [212, 0, 0, 0, 104, 217, 60, 214, 195, 239];
+}
+
+fn test_BlockAckRequest() {
+    // 2B FrameControl + 2B Duration + 6B Address1 + 6B Address2 + 4B CRC
+    let payload = [
+        132, 0, 58, 1, 192, 238, 251, 75, 207, 58, 24, 29, 234, 198, 62, 190, 4, 0, 160, 15,
     ];
 }
