@@ -29,6 +29,12 @@ fn test_data() {
     let payload = [];
 }
 
+fn test_RTS() {
+    let payload = [
+        180, 0, 158, 0, 116, 66, 127, 77, 29, 45, 20, 125, 218, 170, 84, 81,
+    ];
+}
+
 fn test_CTS() {
     // 2B FrameControl + 2B Duration + 6B Address1 (Missing CRC)
     let payload = [196, 0, 246, 14, 224, 62, 68, 8, 195, 239];
