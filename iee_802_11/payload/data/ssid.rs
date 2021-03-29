@@ -2,8 +2,6 @@ use std::io::Cursor;
 
 use bytes::{Buf, Bytes};
 
-use super::FromBytes;
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct SSID {
     pub element_id: u8,
@@ -11,8 +9,8 @@ pub struct SSID {
     pub value: String,
 }
 
-impl FromBytes for SSID {
-    fn from_bytes(input: &[u8]) -> SSID {
+impl SSID {
+    pub fn from_bytes(input: &[u8]) -> SSID {
         let mut cursor = Cursor::new(input);
 
         let element_id = cursor.get_u8();

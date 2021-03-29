@@ -2,8 +2,6 @@ use std::io::Cursor;
 
 use bytes::{Buf, Bytes};
 
-use crate::payload::FromBytes;
-
 #[derive(Clone, Debug, Default)]
 pub struct AdditionalInfo {
     pub country: Country,
@@ -15,7 +13,7 @@ pub struct Country {
     pub country_code: String,
 }
 
-impl FromBytes for Country {
+impl Country {
     fn from_bytes(input: &[u8]) -> Country {
         let mut buf = Bytes::from(input);
         let country_code = buf.split_to(3); // Country code has 3 bytes

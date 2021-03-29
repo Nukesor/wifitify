@@ -3,7 +3,7 @@ use std::io::Cursor;
 use anyhow::{bail, Result};
 use bytes::Buf;
 
-use super::types::*;
+use crate::frame_types::*;
 
 #[inline]
 /// Mini helper to check, whether a bit is set or not.

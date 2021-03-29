@@ -72,7 +72,6 @@ fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
     let dest = frame
         .header
         .dest()
-        .expect("There should always be a destination");
     if frame.header.src().is_none() {
         info!(
             "Got type {:?} ({:?}) to {}",

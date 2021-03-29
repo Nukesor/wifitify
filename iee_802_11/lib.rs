@@ -1,31 +1,31 @@
 use anyhow::Result;
 
-pub mod header;
+pub mod frame_control;
+pub mod frame_types;
 pub mod payload;
 
-use crate::header::*;
+use crate::frame_control::FrameControl;
+use crate::frame_types::*;
 use crate::payload::variants::*;
 use crate::payload::*;
 
 /// This represents a full IEE 800.11 frame.
 /// It's devided into the Header,
 pub struct Frame {
-    pub header: Header,
+    pub control: FrameControl,
     pub payload: Payload,
     //frame_check_sequence: [u8; 4],
 }
 
 impl Frame {
     pub fn from_bytes(input: &[u8]) -> Result<Frame> {
-        let (header, payload_bytes) = Header::from_bytes(input)?;
+        let frame_control = FrameControl::from_bytes(&input[0..2])?;
+        let payload = Frame::parse_payload(&frame_control, &input[2..]);
 
-        let payload = if !payload_bytes.is_empty() {
-            Frame::parse_payload(&header.frame_control, &payload_bytes)
-        } else {
-            Payload::Empty
-        };
-
-        Ok(Frame { header, payload })
+        Ok(Frame {
+            control: frame_control,
+            payload,
+        })
     }
 
     fn parse_payload(frame_control: &FrameControl, input: &[u8]) -> Payload {

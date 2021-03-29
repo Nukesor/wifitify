@@ -1,18 +1,13 @@
+/// Contains structs representing recurring sets structured data.
+/// For instance, MAC-Addresses, default headers, etc.
+pub mod data;
 /// This contains helper functions that are used to interpret and extract information from a byte
 /// array. These should only be used internally.
 mod extractors;
-/// The re
+/// Contains struct representations for all frame types/subtypes.
 pub mod variants;
 
-pub mod ssid;
-
 use variants::*;
-
-pub trait FromBytes {
-    fn from_bytes(input: &[u8]) -> Self
-    where
-        Self: Sized;
-}
 
 #[derive(Clone, Debug)]
 /// This represents all currently supported payloads for various frame types/subtypes.

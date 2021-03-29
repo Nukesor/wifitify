@@ -2,9 +2,8 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
+use crate::payload::data::ssid::SSID;
 use crate::payload::extractors::supported_rates::supported_rates;
-use crate::payload::ssid::SSID;
-use crate::payload::FromBytes;
 
 #[derive(Clone, Debug)]
 pub struct ProbeRequest {
@@ -12,8 +11,8 @@ pub struct ProbeRequest {
     pub supported_rates: Vec<f32>,
 }
 
-impl FromBytes for ProbeRequest {
-    fn from_bytes(input: &[u8]) -> ProbeRequest {
+impl ProbeRequest {
+    pub fn from_bytes(input: &[u8]) -> ProbeRequest {
         let mut cursor = Cursor::new(input);
 
         let ssid = SSID::from_bytes(cursor.bytes());

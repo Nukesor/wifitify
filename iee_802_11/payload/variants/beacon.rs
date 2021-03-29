@@ -2,10 +2,9 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
+use crate::payload::data::ssid::SSID;
 use crate::payload::extractors::country::*;
 use crate::payload::extractors::supported_rates::supported_rates;
-use crate::payload::ssid::SSID;
-use crate::payload::FromBytes;
 
 #[derive(Clone, Debug)]
 pub struct Beacon {
@@ -18,8 +17,8 @@ pub struct Beacon {
     pub country: Country,
 }
 
-impl FromBytes for Beacon {
-    fn from_bytes(input: &[u8]) -> Beacon {
+impl Beacon {
+    pub fn from_bytes(input: &[u8]) -> Beacon {
         let mut cursor = Cursor::new(input);
 
         let timestamp = cursor.get_u64_le();
