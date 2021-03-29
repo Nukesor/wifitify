@@ -3,8 +3,9 @@ use std::io::Cursor;
 use bytes::Buf;
 
 use crate::frame_control::FrameControl;
-use crate::payload::data::{Header, SSID};
+use crate::payload::data::*;
 use crate::payload::extractors::supported_rates;
+use crate::payload::Addresses;
 
 #[derive(Clone, Debug)]
 pub struct ProbeRequest {
@@ -26,5 +27,22 @@ impl ProbeRequest {
             ssid,
             supported_rates: supported_rates(cursor.bytes()),
         }
+    }
+}
+
+impl Addresses for ProbeRequest {
+    /// Returns the sender of the Frame.
+    /// This isn't always send in every frame (e.g. CTS).
+    fn src(&self) -> Option<&MacAddress> {
+        Some(self.header.src())
+    }
+
+    fn dest(&self) -> &MacAddress {
+        self.header.dest()
+    }
+
+    /// This isn't always send in every frame (e.g. RTS).
+    fn bssid(&self) -> Option<&MacAddress> {
+        self.header.bssid()
     }
 }

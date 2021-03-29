@@ -69,26 +69,9 @@ fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
     //    ))?;
     //}
 
-    let dest = frame
-        .header
-        .dest()
-    if frame.header.src().is_none() {
-        info!(
-            "Got type {:?} ({:?}) to {}",
-            frame.header.frame_control.frame_type,
-            frame.header.frame_control.frame_subtype,
-            dest.to_string()
-        );
-        return Ok(());
-    }
-    let src = frame.header.src().unwrap();
-
     info!(
-        "Type {:?} ({:?}) from {} to {}",
-        frame.header.frame_control.frame_type,
-        frame.header.frame_control.frame_subtype,
-        src.to_string(),
-        dest.to_string()
+        "Got type {:?} ({:?})",
+        frame.control.frame_type, frame.control.frame_subtype,
     );
 
     Ok(())

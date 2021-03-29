@@ -3,8 +3,9 @@ use std::io::Cursor;
 use bytes::Buf;
 
 use crate::frame_control::FrameControl;
-use crate::payload::data::{Header, SSID};
+use crate::payload::data::{Header, MacAddress, SSID};
 use crate::payload::extractors::*;
+use crate::payload::Addresses;
 
 #[derive(Clone, Debug)]
 pub struct Beacon {
@@ -45,5 +46,22 @@ impl Beacon {
             current_channel: info.current_channel,
             country: info.country,
         }
+    }
+}
+
+impl Addresses for Beacon {
+    /// Returns the sender of the Frame.
+    /// This isn't always send in every frame (e.g. CTS).
+    fn src(&self) -> Option<&MacAddress> {
+        Some(self.header.src())
+    }
+
+    fn dest(&self) -> &MacAddress {
+        self.header.dest()
+    }
+
+    /// This isn't always send in every frame (e.g. RTS).
+    fn bssid(&self) -> Option<&MacAddress> {
+        self.header.bssid()
     }
 }

@@ -18,4 +18,9 @@ impl MacAddress {
             self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5]
         )
     }
+
+    /// Check whether this MAC addresses the whole network.
+    pub fn is_broadcast(&self) -> bool {
+        self.0 == [255, 255, 255, 255, 255, 255]
+    }
 }
