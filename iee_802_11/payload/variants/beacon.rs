@@ -2,12 +2,13 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
-use crate::payload::data::ssid::SSID;
-use crate::payload::extractors::country::*;
-use crate::payload::extractors::supported_rates::supported_rates;
+use crate::frame_control::FrameControl;
+use crate::payload::data::{Header, SSID};
+use crate::payload::extractors::*;
 
 #[derive(Clone, Debug)]
 pub struct Beacon {
+    pub header: Header,
     pub timestamp: u64,
     pub interval: u16,
     pub cap_info: u16,
@@ -18,14 +19,16 @@ pub struct Beacon {
 }
 
 impl Beacon {
-    pub fn from_bytes(input: &[u8]) -> Beacon {
+    pub fn parse(frame_control: &FrameControl, input: &[u8]) -> Beacon {
+        let (header, input) = Header::parse(frame_control, input);
+
         let mut cursor = Cursor::new(input);
 
         let timestamp = cursor.get_u64_le();
         let interval = cursor.get_u16_le();
         let cap_info = cursor.get_u16_le();
 
-        let ssid = SSID::from_bytes(cursor.bytes());
+        let ssid = SSID::parse(cursor.bytes());
         cursor.advance(ssid.ssid_len + 2); // 2 accounts for Id + Len
 
         let supported_rates = supported_rates(cursor.bytes());
@@ -33,6 +36,7 @@ impl Beacon {
         let info = get_info(cursor.bytes());
 
         Beacon {
+            header,
             timestamp,
             interval,
             cap_info,

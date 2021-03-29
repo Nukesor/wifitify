@@ -14,7 +14,7 @@ pub struct Country {
 }
 
 impl Country {
-    fn from_bytes(input: &[u8]) -> Country {
+    fn parse(input: &[u8]) -> Country {
         let mut buf = Bytes::from(input);
         let country_code = buf.split_to(3); // Country code has 3 bytes
                                             // We should include the supported channels
@@ -57,7 +57,7 @@ pub fn get_info(input: &[u8]) -> AdditionalInfo {
             0x05 => cursor.advance(len), // TIM
             0x06 => cursor.advance(len), // IBSS
             0x07 => {
-                info.country = Country::from_bytes(cursor.bytes());
+                info.country = Country::parse(cursor.bytes());
                 cursor.advance(len);
             }
             0x32..=0x42 => cursor.advance(len), // Can appear before country

@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 use super::mac::*;
 use crate::frame_control::*;
 
@@ -13,7 +11,7 @@ use crate::frame_control::*;
 /// The following is the aproximated format of a full header.
 ///
 /// **Bytes 0-1** \
-/// These contain protocol meta information and flags. These are always present!
+/// These contain protocol meta information and flags. These have already been parsed!
 /// Take a look at the [FrameControl] struct for more information.
 ///
 /// **Bytes 2-3** \
@@ -71,15 +69,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn from_bytes(input: &[u8]) -> Result<(Header, &[u8])> {
-        println!("Bytes: {:?}", &input);
-        // Parse the frame control header. This is always present
-        let frame_control = FrameControl::from_bytes(&input[0..2])?;
-        println!(
-            "Type/Subtype: {:?}, {:?}",
-            frame_control.frame_type, frame_control.frame_subtype
-        );
-
+    pub fn parse<'a>(frame_control: &FrameControl, input: &'a [u8]) -> (Header, &'a [u8]) {
         // Read the duration. Bytes 2-3.
         // We don't do anything with this yet.
         let mut duration: [u8; 2] = [0; 2];
@@ -117,7 +107,7 @@ impl Header {
             seq_ctl,
         };
 
-        Ok((header, &input[last_header_byte..]))
+        (header, &input[last_header_byte..])
     }
 
     /// Return the mac address of the sender

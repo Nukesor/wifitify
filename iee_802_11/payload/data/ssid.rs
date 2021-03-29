@@ -10,7 +10,7 @@ pub struct SSID {
 }
 
 impl SSID {
-    pub fn from_bytes(input: &[u8]) -> SSID {
+    pub fn parse(input: &[u8]) -> SSID {
         let mut cursor = Cursor::new(input);
 
         let element_id = cursor.get_u8();

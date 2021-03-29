@@ -2,12 +2,13 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
-use crate::payload::data::ssid::SSID;
-use crate::payload::extractors::country::*;
-use crate::payload::extractors::supported_rates::supported_rates;
+use crate::frame_control::FrameControl;
+use crate::payload::data::{Header, SSID};
+use crate::payload::extractors::*;
 
 #[derive(Clone, Debug)]
 pub struct ProbeResponse {
+    pub header: Header,
     pub timestamp: u64,
     pub interval: u16,
     pub cap_info: u16,
@@ -18,20 +19,22 @@ pub struct ProbeResponse {
 }
 
 impl ProbeResponse {
-    pub fn from_bytes(input: &[u8]) -> ProbeResponse {
+    pub fn parse(frame_control: &FrameControl, input: &[u8]) -> ProbeResponse {
+        let (header, input) = Header::parse(frame_control, input);
         let mut cursor = Cursor::new(input);
 
         let timestamp = cursor.get_u64_le();
         let interval = cursor.get_u16_le();
         let cap_info = cursor.get_u16_le();
 
-        let ssid = SSID::from_bytes(cursor.bytes());
+        let ssid = SSID::parse(cursor.bytes());
         cursor.advance(ssid.ssid_len + 2); // 2 accounts for Id + Len
         let supported_rates = supported_rates(cursor.bytes());
         cursor.advance(supported_rates.len() + 2); // 2 accounts for Id + Len
         let info = get_info(cursor.bytes());
 
         ProbeResponse {
+            header,
             timestamp,
             interval,
             cap_info,

@@ -1,8 +1,3 @@
-use std::io::Cursor;
-
-use anyhow::{bail, Result};
-use bytes::Buf;
-
 use crate::frame_types::*;
 
 #[inline]
@@ -40,6 +35,7 @@ fn flag_is_set(data: u8, bit: u8) -> bool {
 /// bit_7 `order`: Set if the frame is being sent according to the 'Strictly Ordered Class'
 #[derive(Copy, Clone, Debug)]
 pub struct FrameControl {
+    pub protocol_version: u8,
     pub frame_type: FrameType,
     pub frame_subtype: FrameSubType,
     pub to_ds: bool,
@@ -54,32 +50,28 @@ pub struct FrameControl {
 
 impl FrameControl {
     /// This function parses a given two-byte frame-control header.
-    pub fn from_bytes(input: &[u8]) -> Result<FrameControl> {
-        let mut cursor = Cursor::new(input);
-
-        // The first byte contains all protocol and FrameType information
-        let version_type_subtype = cursor.get_u8();
-
+    /// The first byte contains all protocol and FrameType information
+    pub fn parse(input: &[u8]) -> FrameControl {
         // The first two bits specify the protocol version
         // Until now, this has always been 0 and is expected to be 0
-        if FrameControl::protocol_version(version_type_subtype) != 0 {
-            bail!("Unknow protocol version");
-        }
+        let protocol_version = FrameControl::protocol_version(input[0]);
 
         // The next two bits determine what kind of frame we got
-        let frame_type = FrameControl::frame_type(version_type_subtype);
+        let frame_type = FrameControl::frame_type(input[0]);
 
         // The next 4 bits are then used to determine the frame sub-type.
         // The sub-type depends on the current FrameType
         let frame_subtype = match frame_type {
-            FrameType::Management => FrameControl::management_frame_subtype(version_type_subtype),
-            FrameType::Control => FrameControl::control_frame_subtype(version_type_subtype),
-            FrameType::Data => FrameControl::data_frame_subtype(version_type_subtype),
+            FrameType::Management => FrameControl::management_frame_subtype(input[0]),
+            FrameType::Control => FrameControl::control_frame_subtype(input[0]),
+            FrameType::Data => FrameControl::data_frame_subtype(input[0]),
             FrameType::Unknown => FrameSubType::UnHandled,
         };
 
-        let flags = cursor.get_u8();
-        let fc = FrameControl {
+        let flags = input[1];
+
+        FrameControl {
+            protocol_version,
             frame_type,
             frame_subtype,
             to_ds: flag_is_set(flags, 0),
@@ -90,9 +82,7 @@ impl FrameControl {
             more_data: flag_is_set(flags, 5),
             wep: flag_is_set(flags, 6),
             order: flag_is_set(flags, 7),
-        };
-
-        Ok(fc)
+        }
     }
 
     fn protocol_version(byte: u8) -> u8 {
@@ -199,7 +189,7 @@ mod tests {
         for bit in 0..7 {
             let second_byte = 0b0000_0001 << bit;
             let bytes = [0b0000_0000, second_byte];
-            let frame_control = FrameControl::from_bytes(&bytes).unwrap();
+            let frame_control = FrameControl::parse(&bytes).unwrap();
 
             // All bits except the currently selected bit should be false.
             for check_bit in 0..7 {
@@ -218,7 +208,7 @@ mod tests {
     /// Remember
     fn test_beacon() {
         let bytes = [0b1000_0000, 0b0000_0000];
-        let frame_control = FrameControl::from_bytes(&bytes).unwrap();
+        let frame_control = FrameControl::parse(&bytes).unwrap();
 
         assert!(matches!(frame_control.frame_type, FrameType::Management));
         assert!(matches!(frame_control.frame_subtype, FrameSubType::Beacon));
