@@ -1,51 +1,51 @@
 use anyhow::Result;
 
-pub mod frame;
 pub mod header;
+pub mod payload;
 
-use crate::frame::variants::*;
-use crate::frame::*;
 use crate::header::*;
+use crate::payload::variants::*;
+use crate::payload::*;
 
 /// This represents a full IEE 800.11 frame.
 /// It's devided into the Header,
-pub struct Message {
+pub struct Frame {
     pub header: Header,
-    pub frame: Frame,
+    pub payload: Payload,
     //frame_check_sequence: [u8; 4],
 }
 
-impl Message {
-    pub fn from_bytes(input: &[u8]) -> Result<Message> {
-        let (header, frame_bytes) = Header::from_bytes(input)?;
+impl Frame {
+    pub fn from_bytes(input: &[u8]) -> Result<Frame> {
+        let (header, payload_bytes) = Header::from_bytes(input)?;
 
-        let frame = if !frame_bytes.is_empty() {
-            Message::parse_frame(&header.frame_control, &frame_bytes)
+        let payload = if !payload_bytes.is_empty() {
+            Frame::parse_payload(&header.frame_control, &payload_bytes)
         } else {
-            Frame::Empty
+            Payload::Empty
         };
 
-        Ok(Message { header, frame })
+        Ok(Frame { header, payload })
     }
 
-    fn parse_frame(frame_control: &FrameControl, input: &[u8]) -> Frame {
+    fn parse_payload(frame_control: &FrameControl, input: &[u8]) -> Payload {
         // For now, only management Frames are handled
         if !matches!(frame_control.frame_type, FrameType::Management) {
-            return Frame::UnHandled(true);
+            return Payload::UnHandled(true);
         }
 
         // Check which kind of frame sub-type we got
         match frame_control.frame_subtype {
-            FrameSubType::Beacon => Frame::Beacon(Beacon::from_bytes(input)),
-            FrameSubType::ProbeReq => Frame::ProbeRequest(ProbeRequest::from_bytes(input)),
-            FrameSubType::ProbeResp => Frame::ProbeResponse(ProbeResponse::from_bytes(input)),
+            FrameSubType::Beacon => Payload::Beacon(Beacon::from_bytes(input)),
+            FrameSubType::ProbeReq => Payload::ProbeRequest(ProbeRequest::from_bytes(input)),
+            FrameSubType::ProbeResp => Payload::ProbeResponse(ProbeResponse::from_bytes(input)),
             FrameSubType::AssoReq => {
-                Frame::AssociationRequest(AssociationRequest::from_bytes(input))
+                Payload::AssociationRequest(AssociationRequest::from_bytes(input))
             }
             FrameSubType::AssoResp => {
-                Frame::AssociationResponse(AssociationResponse::from_bytes(input))
+                Payload::AssociationResponse(AssociationResponse::from_bytes(input))
             }
-            _ => Frame::UnHandled(true),
+            _ => Payload::UnHandled(true),
         }
     }
 }

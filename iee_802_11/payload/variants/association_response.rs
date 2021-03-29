@@ -2,8 +2,8 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
-use crate::frame::extractors::supported_rates::supported_rates;
-use crate::frame::FromBytes;
+use crate::payload::extractors::supported_rates::supported_rates;
+use crate::payload::FromBytes;
 
 #[derive(Clone, Debug)]
 pub struct AssociationResponse {

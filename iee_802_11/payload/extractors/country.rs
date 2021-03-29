@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use bytes::{Buf, Bytes};
 
-use crate::frame::FromBytes;
+use crate::payload::FromBytes;
 
 #[derive(Clone, Debug, Default)]
 pub struct AdditionalInfo {

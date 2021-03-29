@@ -15,9 +15,9 @@ pub trait FromBytes {
 }
 
 #[derive(Clone, Debug)]
-/// This frame represents all currently supported frame sub/types.
-/// Each type is represented by its own struct, which can be found in the [variants] module.
-pub enum Frame {
+/// This represents all currently supported payloads for various frame types/subtypes.
+/// Each variant is represented by its own struct, which can be found in the [variants] module.
+pub enum Payload {
     Beacon(Beacon),
     ProbeRequest(ProbeRequest),
     ProbeResponse(ProbeResponse),
