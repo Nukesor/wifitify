@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use clap::Clap;
 use iee_802_11::*;
 use log::{debug, error, info};
-use pcap::Device;
+use pcap::{Capture, Device};
 use radiotap::Radiotap;
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
@@ -25,8 +25,11 @@ fn main() -> Result<()> {
     SimpleLogger::init(level, Config::default()).unwrap();
 
     let device = find_device_by_name(&opt.device)?;
+    let capture = Capture::from_device(device)?.immediate_mode(true);
 
-    let mut capture = device.open().context("Failed to open device")?;
+    let mut capture = capture
+        .open()
+        .context("Failed to open capture on device.")?;
 
     // Set pcap Datalink type to IEE 802.11
     // http://www.tcpdump.org/linktypes.html
