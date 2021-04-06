@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use clap::Clap;
-use iee_802_11::*;
+use libwifi::*;
 use log::{debug, error, info};
 use pcap::{Capture, Device};
 use radiotap::Radiotap;
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
 }
 
 fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
-    let frame = Frame::parse(bytes)?;
+    let result = Frame::parse(bytes);
     //if let Some(ap) = mapper.map(tap_data, dot11_header, people) {
     //    term.write_line(&format!(
     //        "Access point {} signal {} current channel {} {}",
@@ -72,10 +72,15 @@ fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
     //    ))?;
     //}
 
-    info!(
-        "Got type {:?} ({:?})",
-        frame.control.frame_type, frame.control.frame_subtype,
-    );
+    match result {
+        Ok((_, frame)) => {
+            info!(
+                "Got type {:?} ({:?})",
+                frame.control.frame_type, frame.control.frame_subtype,
+            );
+        }
+        Err(err) => error!("{}", err),
+    }
 
     Ok(())
 }
