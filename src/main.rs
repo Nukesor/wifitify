@@ -52,16 +52,21 @@ fn main() -> Result<()> {
         };
 
         let payload = &packet.data[radiotap.header.length..];
+        debug!("Full packet: {:?}", payload);
         if let Err(err) = handle_ieee_802_11_payload(payload) {
-            debug!("Error during frame handling:\n{:?}", err);
+            debug!("Error during frame handling:\n{}", err);
+            match err {
+                libwifi::error::Error::Failure(_, data) => debug!("{:?}", data),
+                _ => (),
+            }
         };
     }
 
     Ok(())
 }
 
-fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
-    let result = Frame::parse(bytes);
+fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<(), libwifi::error::Error> {
+    let frame = Frame::parse(bytes)?;
     //if let Some(ap) = mapper.map(tap_data, dot11_header, people) {
     //    term.write_line(&format!(
     //        "Access point {} signal {} current channel {} {}",
@@ -72,15 +77,10 @@ fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<()> {
     //    ))?;
     //}
 
-    match result {
-        Ok((_, frame)) => {
-            info!(
-                "Got type {:?} ({:?})",
-                frame.control.frame_type, frame.control.frame_subtype,
-            );
-        }
-        Err(err) => error!("{}", err),
-    }
+    info!(
+        "Got type {:?} ({:?})",
+        frame.control.frame_type, frame.control.frame_subtype,
+    );
 
     Ok(())
 }
