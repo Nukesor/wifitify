@@ -16,3 +16,4 @@ The enabling of the extension will happen automatically in SqlX's migration scri
 
 1. Install the `sqlx-cli` app with `cargo install sqlx-cli`.
     This helper is used for migration and database management.
+2. Create `.env` file which contains the `DATABASE_URL=$YOURURL` variable.
