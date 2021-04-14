@@ -1,14 +1,14 @@
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use clap::Clap;
-use libwifi::*;
-use log::{debug, error, info};
-use pcap::{Capture, Device};
-use radiotap::Radiotap;
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
+mod capture;
 mod cli;
+mod device;
 
+use capture::*;
 use cli::CliArguments;
+use device::*;
 
 fn main() -> Result<()> {
     better_panic::install();
@@ -24,75 +24,11 @@ fn main() -> Result<()> {
     };
     SimpleLogger::init(level, Config::default()).unwrap();
 
-    let device = find_device_by_name(&opt.device)?;
-    let capture = Capture::from_device(device)?.immediate_mode(true);
-
-    let mut capture = capture
-        .open()
-        .context("Failed to open capture on device.")?;
-
-    // Set pcap Datalink type to IEE 802.11
-    // http://www.tcpdump.org/linktypes.html
-    // DLT_IEEE802_11_RADIO = 127
-    capture
-        .set_datalink(pcap::Linktype(127))
-        .context("Failed to set wifi datalink type")?;
+    let mut capture = get_capture(&opt.device)?;
 
     while let Ok(packet) = capture.next() {
-        // At first, we look at the
-        let radiotap = match Radiotap::from_bytes(packet.data) {
-            Ok(radiotap) => radiotap,
-            Err(error) => {
-                error!(
-                    "Couldn't read packet data with Radiotap: {:?}, error {:?}",
-                    &packet.data, error
-                );
-                continue;
-            }
-        };
-
-        let payload = &packet.data[radiotap.header.length..];
-        debug!("Full packet: {:?}", payload);
-        if let Err(err) = handle_ieee_802_11_payload(payload) {
-            debug!("Error during frame handling:\n{}", err);
-            match err {
-                libwifi::error::Error::Failure(_, data) => debug!("{:?}", data),
-                _ => (),
-            }
-        };
+        handle_packet(packet)?;
     }
 
     Ok(())
-}
-
-fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<(), libwifi::error::Error> {
-    let frame = Frame::parse(bytes)?;
-    //if let Some(ap) = mapper.map(tap_data, dot11_header, people) {
-    //    term.write_line(&format!(
-    //        "Access point {} signal {} current channel {} {}",
-    //        style(ap.ssid).cyan(),
-    //        style(ap.signal).cyan(),
-    //        style(ap.current_channel).cyan(),
-    //        "                      "
-    //    ))?;
-    //}
-
-    info!(
-        "Got type {:?} ({:?})",
-        frame.control.frame_type, frame.control.frame_subtype,
-    );
-
-    Ok(())
-}
-
-fn find_device_by_name(name: &str) -> Result<Device> {
-    let devices = Device::list().context("Failed during device lookup:")?;
-    for device in devices {
-        info!("Found device {:?}", device.name);
-        if device.name == name {
-            return Ok(device);
-        }
-    }
-
-    bail!("Couldn't find device with name {}", name)
 }
