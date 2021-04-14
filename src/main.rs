@@ -2,15 +2,16 @@ use anyhow::Result;
 use clap::Clap;
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
-mod capture;
 mod cli;
-mod device;
+mod db;
+mod wifi;
 
-use capture::*;
-use cli::CliArguments;
-use device::*;
+use crate::cli::CliArguments;
+use crate::wifi::capture::*;
+use crate::wifi::device::*;
 
-fn main() -> Result<()> {
+#[async_std::main]
+async fn main() -> Result<()> {
     better_panic::install();
     // Parse commandline options.
     let opt = CliArguments::parse();
@@ -25,6 +26,8 @@ fn main() -> Result<()> {
     SimpleLogger::init(level, Config::default()).unwrap();
 
     let mut capture = get_capture(&opt.device)?;
+
+    let pool = db::init_pool().await?;
 
     while let Ok(packet) = capture.next() {
         handle_packet(packet)?;
