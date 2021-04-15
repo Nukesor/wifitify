@@ -2,6 +2,8 @@ use anyhow::Result;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 
+pub mod models;
+
 type DbPool = Pool<Postgres>;
 
 /// Create the connection pool for our application.
