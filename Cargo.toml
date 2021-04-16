@@ -1,7 +1,9 @@
 [package]
-name = "sniff"
+name = "Wifitify"
+description = "Monitor your wifi devices and create hook based behavior."
 version = "0.1.0"
 authors = ["Arne Beer <contact@arne.beer>"]
+keywords = ["wifi", "montior", "hooks", "events"]
 edition = "2018"
 
 [dependencies]

@@ -1,76 +1,52 @@
-use anyhow::Result;
-use libwifi::components::MacAddress;
-use libwifi::frame::Frame;
-use libwifi::frame_types::FrameSubType;
-use libwifi::traits::*;
-use log::{debug, error, info};
+use anyhow::{bail, Context, Result};
+use log::info;
+use pcap::{Active, Capture, Device};
+
+use libwifi::*;
 use pcap::Packet;
 use radiotap::Radiotap;
 
-pub fn handle_packet(packet: Packet) -> Result<()> {
-    // At first, we look at the
-    let radiotap = match Radiotap::from_bytes(packet.data) {
-        Ok(radiotap) => radiotap,
-        Err(error) => {
-            error!(
-                "Couldn't read packet data with Radiotap: {:?}, error {:?}",
-                &packet.data, error
-            );
-            return Ok(());
-        }
-    };
+/// Parse the packet received by [pcap](::pcap)
+pub fn handle_packet(packet: Packet) -> Result<Frame> {
+    // Read the raw payload, which
+    let radiotap = Radiotap::from_bytes(packet.data)?;
 
-    let payload = &packet.data[radiotap.header.length..];
-    debug!("Full packet: {:?}", payload);
-    if let Err(err) = handle_ieee_802_11_payload(payload) {
-        debug!("Error during frame handling:\n{}", err);
-        match err {
-            libwifi::error::Error::Failure(_, data) => debug!("{:?}", data),
-            _ => (),
-        }
-    };
+    let bytes = &packet.data[radiotap.header.length..];
+    let frame = libwifi::parse_frame(bytes)?;
 
-    Ok(())
+    Ok(frame)
 }
 
-#[derive(Clone, Debug)]
-struct ExtractedData {
-    pub frame_type: FrameSubType,
-    pub data: Option<i32>,
-    pub src: Option<MacAddress>,
-    pub dest: MacAddress,
-    pub ssid: Option<String>,
+/// Initializes and configures a network device by name.
+/// The continuous capture stream of the device is returned.
+pub fn get_capture(device_name: &str) -> Result<Capture<Active>> {
+    let device = find_device_by_name(device_name)?;
+    let capture = Capture::from_device(device)?.immediate_mode(true);
+
+    let mut capture = capture
+        .open()
+        .context("Failed to open capture on device.")?;
+
+    // Set pcap Datalink type to IEE 802.11
+    // http://www.tcpdump.org/linktypes.html
+    // DLT_IEEE802_11_RADIO = 127
+    capture
+        .set_datalink(pcap::Linktype(127))
+        .context("Failed to set wifi datalink type")?;
+
+    Ok(capture)
 }
 
-fn handle_ieee_802_11_payload(bytes: &[u8]) -> Result<(), libwifi::error::Error> {
-    let frame = libwifi::parse(bytes)?;
+/// Check if a device with a given name exists.
+/// If that's the case, return it.
+fn find_device_by_name(name: &str) -> Result<Device> {
+    let devices = Device::list().context("Failed during device lookup:")?;
+    for device in devices {
+        info!("Found device {:?}", device.name);
+        if device.name == name {
+            return Ok(device);
+        }
+    }
 
-    let data = match frame {
-        Frame::Beacon(frame) => ExtractedData {
-            src: frame.src().map(Clone::clone),
-            dest: frame.dest().clone(),
-            ssid: frame.station_info.ssid.clone(),
-            data: None,
-            frame_type: FrameSubType::Beacon,
-        },
-        Frame::ProbeRequest(frame) => ExtractedData {
-            src: frame.src().map(Clone::clone),
-            dest: frame.dest().clone(),
-            ssid: None,
-            data: None,
-            frame_type: FrameSubType::ProbeRequest,
-        },
-        Frame::ProbeResponse(frame) => ExtractedData {
-            src: frame.src().map(Clone::clone),
-            dest: frame.dest().clone(),
-            ssid: frame.station_info.ssid.clone(),
-            data: None,
-            frame_type: FrameSubType::ProbeResponse,
-        },
-        _ => return Ok(()),
-    };
-
-    debug!("Extracted data: {:?}", data);
-
-    Ok(())
+    bail!("Couldn't find device with name {}", name)
 }

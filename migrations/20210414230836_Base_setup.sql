@@ -1,33 +1,37 @@
 CREATE TABLE stations (
+    id SERIAL,
     mac_address VARCHAR(17),
     ssid VARCHAR(32),
     nickname Text,
     description Text,
     UNIQUE (nickname),
-    PRIMARY KEY (mac_address)
+    UNIQUE (mac_address),
+    PRIMARY KEY (id)
 );
 CREATE INDEX station_nickname ON stations (nickname);
 
 CREATE TABLE devices (
+    id SERIAL,
     mac_address VARCHAR(17),
     nickname Text,
     description Text,
-    station VARCHAR(17),
-    FOREIGN KEY (station) REFERENCES stations (mac_address),
+    station integer,
+    FOREIGN KEY (station) REFERENCES stations (id),
     UNIQUE (nickname),
-    PRIMARY KEY (mac_address)
+    UNIQUE (mac_address),
+    PRIMARY KEY (id)
 );
 CREATE INDEX device_nickname ON devices (nickname);
 
 CREATE TABLE data (
     time timestamp,
-    device VARCHAR(17),
-    station VARCHAR(17),
+    device integer,
+    station integer,
     frame_type VARCHAR,
-    amount_per_minute Int,
-    FOREIGN KEY (device) REFERENCES devices (mac_address),
-    FOREIGN KEY (station) REFERENCES stations (mac_address),
-    PRIMARY KEY (time, device, station)
+    amount_per_minute integer,
+    FOREIGN KEY (device) REFERENCES devices (id),
+    FOREIGN KEY (station) REFERENCES stations (id),
+    PRIMARY KEY (time, device, station, frame_type)
 );
 CREATE INDEX time ON data (time, device);
 

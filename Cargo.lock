@@ -3,6 +3,23 @@
 version = 3
 
 [[package]]
+name = "Wifitify"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "better-panic",
+ "chrono",
+ "clap",
+ "libwifi",
+ "log",
+ "pcap",
+ "radiotap",
+ "simplelog",
+ "sqlx",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -913,10 +930,11 @@ dependencies = [
 
 [[package]]
 name = "libwifi"
-version = "0.1.0"
+version = "0.1.1-alpha.0"
 dependencies = [
  "log",
  "nom",
+ "strum_macros",
  "thiserror",
 ]
 
@@ -1484,23 +1502,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 
 [[package]]
-name = "sniff"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-std",
- "better-panic",
- "chrono",
- "clap",
- "libwifi",
- "log",
- "pcap",
- "radiotap",
- "simplelog",
- "sqlx",
-]
-
-[[package]]
 name = "socket2"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1638,6 +1639,18 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "strum_macros"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee8bc6b87a5112aeeab1f4a9f7ab634fe6cbefc4850006df31267f4cfb9e3149"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "subtle"
