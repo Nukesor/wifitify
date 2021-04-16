@@ -3,6 +3,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
 
 pub mod models;
+pub mod queries;
 
 type DbPool = Pool<Postgres>;
 
