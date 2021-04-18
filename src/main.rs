@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Clap;
-use db::models::Data;
-use libwifi::Frame;
+use db::{
+    models::{Data, Station},
+    DbPool,
+};
+use libwifi::{Addresses, Frame, HasHeader};
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
 mod cli;
@@ -52,26 +55,27 @@ async fn main() -> Result<()> {
     });
 
     loop {
-        let data = receiver.recv()?;
+        let frame = receiver.recv()?;
 
-        // 4 Bytes default data per received packet
-        //let data_amount = data.amount.unwrap_or(4);
-
-        //let data = Data {
-        //    device: data.src,
-        //    station: data.dest,
-        //    frame_type: data.frame_type.to_string(),
-        //    time: chrono::offset::Local::now().naive_local(),
-        //    amount_per_minute: data_amount,
-        //};
+        extract_data(frame, &pool).await?;
     }
 }
 
-//fn extract_data(frame: Frame) -> Result<ExtractedData> {
-//    match frame {
-//        Frame::Beacon(frame) => ,
-//        Frame::ProbeRequest(frame) => ,
-//        Frame::ProbeResponse(frame) => ,
-//        _ => bail!("Cannot extract data from this frame yet"),
-//    }
-//}
+async fn extract_data(frame: Frame, pool: &DbPool) -> Result<()> {
+    match frame {
+        Frame::Beacon(frame) => {
+            let station = Station {
+                id: 0,
+                mac_address: frame.src().unwrap().clone(),
+                ssid: frame.station_info.ssid.clone(),
+                nickname: None,
+                description: None,
+            };
+
+            Station::persist(&station, &pool).await?;
+        }
+        _ => println!("Ignoring frame: {:?}", frame),
+    };
+
+    Ok(())
+}

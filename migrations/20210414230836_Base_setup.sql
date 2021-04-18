@@ -27,11 +27,10 @@ CREATE TABLE data (
     time timestamp,
     device integer,
     station integer,
-    frame_type VARCHAR,
     amount_per_minute integer,
     FOREIGN KEY (device) REFERENCES devices (id),
     FOREIGN KEY (station) REFERENCES stations (id),
-    PRIMARY KEY (time, device, station, frame_type)
+    PRIMARY KEY (time, device, station)
 );
 CREATE INDEX time ON data (time, device);
 

@@ -6,7 +6,7 @@ use sqlx::{Pool, Postgres};
 pub mod models;
 pub mod queries;
 
-type DbPool = Pool<Postgres>;
+pub type DbPool = Pool<Postgres>;
 
 /// Create the connection pool for our application.
 /// This pool will be passed around and used for every query in our applicaton.

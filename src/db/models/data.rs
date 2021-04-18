@@ -9,24 +9,22 @@ pub struct Data {
     pub time: NaiveDateTime,
     pub device: i32,
     pub station: i32,
-    pub frame_type: String,
     pub amount_per_minute: i32,
 }
 
 impl Data {
     pub async fn persist(&self, pool: DbPool) -> Result<()> {
-        sqlx::query(
+        sqlx::query!(
             "
-INSERT INTO data (device, station, time, frame_type, amount_per_minute)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT DO
-UPDATE SET amount_per_minute = amount_per_minute + $5",
+INSERT INTO data (time, device, station, amount_per_minute)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (time, device, station) DO
+UPDATE SET amount_per_minute = EXCLUDED.amount_per_minute + $4",
+            self.time,
+            self.device,
+            self.station,
+            self.amount_per_minute,
         )
-        .bind(self.device)
-        .bind(self.station)
-        .bind(self.time)
-        .bind(self.frame_type.to_string())
-        .bind(self.amount_per_minute)
         .execute(&pool)
         .await?;
 
