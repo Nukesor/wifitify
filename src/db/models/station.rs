@@ -1,7 +1,7 @@
 use anyhow::Result;
-use libwifi::frame::components::MacAddress;
 use sqlx::FromRow;
 
+use crate::db::types::MacAddress;
 use crate::db::DbPool;
 
 #[derive(FromRow)]

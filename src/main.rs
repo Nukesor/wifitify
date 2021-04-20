@@ -66,7 +66,7 @@ async fn extract_data(frame: Frame, pool: &DbPool) -> Result<()> {
         Frame::Beacon(frame) => {
             let station = Station {
                 id: 0,
-                mac_address: frame.src().unwrap().clone(),
+                mac_address: frame.src().unwrap().clone().into(),
                 ssid: frame.station_info.ssid.clone(),
                 nickname: None,
                 description: None,

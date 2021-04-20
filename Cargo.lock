@@ -3,23 +3,6 @@
 version = 3
 
 [[package]]
-name = "Wifitify"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-std",
- "better-panic",
- "chrono",
- "clap",
- "libwifi",
- "log",
- "pcap",
- "radiotap",
- "simplelog",
- "sqlx",
-]
-
-[[package]]
 name = "addr2line"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1990,6 +1973,23 @@ name = "widestring"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7157704c2e12e3d2189c507b7482c52820a16dfa4465ba91add92f266667cadb"
+
+[[package]]
+name = "wifitify"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-std",
+ "better-panic",
+ "chrono",
+ "clap",
+ "libwifi",
+ "log",
+ "pcap",
+ "radiotap",
+ "simplelog",
+ "sqlx",
+]
 
 [[package]]
 name = "winapi"

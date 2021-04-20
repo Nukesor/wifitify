@@ -5,6 +5,7 @@ use sqlx::{Pool, Postgres};
 
 pub mod models;
 pub mod queries;
+pub mod types;
 
 pub type DbPool = Pool<Postgres>;
 
@@ -16,6 +17,6 @@ pub async fn init_pool() -> Result<DbPool> {
     info!("Spawn database pool with {} slots", pool_size);
     Ok(PgPoolOptions::new()
         .max_connections(pool_size)
-        .connect("postgres://localhost/sniffer")
+        .connect("postgres://nuke@localhost/wifitify")
         .await?)
 }

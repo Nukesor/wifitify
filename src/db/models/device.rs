@@ -1,5 +1,6 @@
-use libwifi::frame::components::MacAddress;
 use sqlx::FromRow;
+
+use crate::db::types::MacAddress;
 
 #[derive(FromRow)]
 pub struct Device {
