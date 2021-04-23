@@ -70,15 +70,11 @@ async fn extract_data(
     stations: &mut HashSet<String>,
     _clients: &mut HashSet<String>,
 ) -> Result<()> {
-    println!("Inside: {:?}", &stations);
     match frame {
         Frame::Beacon(frame) => {
             let station_mac = frame.src().unwrap().clone();
             let station_mac_string = station_mac.to_string();
 
-            println!("Incoming mac string: {:?}", station_mac_string);
-            println!("Stations: {:?}", &stations);
-            println!("Set has mac: {:?}", stations.contains(&station_mac_string));
             // We already know this station
             if stations.contains(&station_mac_string) {
                 return Ok(());
