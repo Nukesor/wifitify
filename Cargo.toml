@@ -12,6 +12,7 @@ anyhow = "1"
 better-panic = "0.2"
 
 # Async runtime
+futures = "0.3"
 async-std = { version = "1", features = ['attributes'] }
 
 # Cli

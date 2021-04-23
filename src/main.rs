@@ -1,10 +1,9 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use clap::Clap;
-use db::{
-    models::{Data, Station},
-    DbPool,
-};
-use libwifi::{Addresses, Frame, HasHeader};
+use db::{models::Station, DbPool};
+use libwifi::{Addresses, Frame};
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
 mod cli;
@@ -54,19 +53,41 @@ async fn main() -> Result<()> {
         }
     });
 
+    let mut stations = Station::known_macs(&pool).await?;
+    let mut clients: HashSet<String> = HashSet::new();
+
+    println!("Outside: {:?}", &stations);
     loop {
         let frame = receiver.recv()?;
 
-        extract_data(frame, &pool).await?;
+        extract_data(frame, &pool, &mut stations, &mut clients).await?;
     }
 }
 
-async fn extract_data(frame: Frame, pool: &DbPool) -> Result<()> {
+async fn extract_data(
+    frame: Frame,
+    pool: &DbPool,
+    stations: &mut HashSet<String>,
+    _clients: &mut HashSet<String>,
+) -> Result<()> {
+    println!("Inside: {:?}", &stations);
     match frame {
         Frame::Beacon(frame) => {
+            let station_mac = frame.src().unwrap().clone();
+            let station_mac_string = station_mac.to_string();
+
+            println!("Incoming mac string: {:?}", station_mac_string);
+            println!("Stations: {:?}", &stations);
+            println!("Set has mac: {:?}", stations.contains(&station_mac_string));
+            // We already know this station
+            if stations.contains(&station_mac_string) {
+                return Ok(());
+            }
+            stations.insert(station_mac_string);
+
             let station = Station {
                 id: 0,
-                mac_address: frame.src().unwrap().clone().into(),
+                mac_address: station_mac.into(),
                 ssid: frame.station_info.ssid.clone(),
                 nickname: None,
                 description: None,
