@@ -915,10 +915,22 @@ dependencies = [
 name = "libwifi"
 version = "0.1.1-alpha.0"
 dependencies = [
+ "libwifi_macros",
  "log",
  "nom",
  "strum_macros",
  "thiserror",
+]
+
+[[package]]
+name = "libwifi_macros"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "145ca6b87e7c0117dc333b51b96bac5432a05157a000c7c4391b7bed71a87195"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
