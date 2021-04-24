@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use chrono::Timelike;
 use clap::Clap;
-use db::models::{Data, Device, Station};
-use db::DbPool;
+use libwifi::frame::components::MacAddress;
 use libwifi::{Addresses, Frame};
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
@@ -14,6 +13,8 @@ mod wifi;
 
 use crate::cli::CliArguments;
 use crate::wifi::capture::*;
+use db::models::{Data, Device, Station};
+use db::DbPool;
 
 #[async_std::main]
 async fn main() -> Result<()> {
@@ -97,51 +98,70 @@ async fn extract_data(
             let src = frame.src().expect("Data frames always have a source");
             let dest = frame.dest();
 
-            // Data frames can go in both directions.
-            // Check if either src or dest is known station, the other one has to be the device.
-            // If none is a known station, we just return.
-            let (station, device_mac) = if let Some(id) = stations.get(&src.to_string()) {
-                (id, dest)
-            } else if let Some(id) = stations.get(&dest.to_string()) {
-                (id, src)
-            } else {
-                return Ok(());
-            };
+            handle_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
+        }
+        Frame::QosData(frame) => {
+            let src = frame.src().expect("Data frames always have a source");
+            let dest = frame.dest();
 
-            // Either get the device id from the known device map.
-            // If it's not in there yet, register a new client and add the client id to the map.
-            let device = if let Some(id) = devices.get(&device_mac.to_string()) {
-                *id
-            } else {
-                let device = Device {
-                    id: 0,
-                    mac_address: device_mac.clone().into(),
-                    nickname: None,
-                    description: None,
-                    station: *station,
-                };
-
-                let id = device.persist(&pool).await?;
-                devices.insert(device_mac.to_string(), id);
-
-                id
-            };
-
-            let mut time = chrono::offset::Local::now().naive_local();
-            time = time.with_second(0).unwrap();
-            time = time.with_nanosecond(0).unwrap();
-
-            let data = Data {
-                time,
-                device,
-                station: *station,
-                amount_per_minute: frame.data.len() as i32,
-            };
-
-            data.persist(pool).await?;
+            handle_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
         }
         _ => println!("Ignoring frame: {:?}", frame),
     };
+
+    Ok(())
+}
+
+async fn handle_data_frame(
+    pool: &DbPool,
+    src: &MacAddress,
+    dest: &MacAddress,
+    data_length: i32,
+    stations: &mut HashMap<String, i32>,
+    devices: &mut HashMap<String, i32>,
+) -> Result<()> {
+    // Data frames can go in both directions.
+    // Check if either src or dest is known station, the other one has to be the device.
+    // If none is a known station, we just return.
+    let (station, device_mac) = if let Some(id) = stations.get(&src.to_string()) {
+        (id, dest)
+    } else if let Some(id) = stations.get(&dest.to_string()) {
+        (id, src)
+    } else {
+        return Ok(());
+    };
+
+    // Either get the device id from the known device map.
+    // If it's not in there yet, register a new client and add the client id to the map.
+    let device = if let Some(id) = devices.get(&device_mac.to_string()) {
+        *id
+    } else {
+        let device = Device {
+            id: 0,
+            mac_address: device_mac.clone().into(),
+            nickname: None,
+            description: None,
+            station: *station,
+        };
+
+        let id = device.persist(&pool).await?;
+        devices.insert(device_mac.to_string(), id);
+
+        id
+    };
+
+    let mut time = chrono::offset::Local::now().naive_local();
+    time = time.with_second(0).unwrap();
+    time = time.with_nanosecond(0).unwrap();
+
+    let data = Data {
+        time,
+        device,
+        station: *station,
+        amount_per_minute: data_length,
+    };
+
+    data.persist(pool).await?;
 
     Ok(())
 }
