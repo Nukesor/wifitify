@@ -1,8 +1,10 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use anyhow::Result;
+use chrono::Timelike;
 use clap::Clap;
-use db::{models::Station, DbPool};
+use db::models::{Data, Device, Station};
+use db::DbPool;
 use libwifi::{Addresses, Frame};
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
@@ -54,21 +56,21 @@ async fn main() -> Result<()> {
     });
 
     let mut stations = Station::known_macs(&pool).await?;
-    let mut clients: HashSet<String> = HashSet::new();
+    let mut devices = Device::known_macs(&pool).await?;
 
     println!("Outside: {:?}", &stations);
     loop {
         let frame = receiver.recv()?;
 
-        extract_data(frame, &pool, &mut stations, &mut clients).await?;
+        extract_data(frame, &pool, &mut stations, &mut devices).await?;
     }
 }
 
 async fn extract_data(
     frame: Frame,
     pool: &DbPool,
-    stations: &mut HashSet<String>,
-    _clients: &mut HashSet<String>,
+    stations: &mut HashMap<String, i32>,
+    devices: &mut HashMap<String, i32>,
 ) -> Result<()> {
     match frame {
         Frame::Beacon(frame) => {
@@ -76,11 +78,9 @@ async fn extract_data(
             let station_mac_string = station_mac.to_string();
 
             // We already know this station
-            if stations.contains(&station_mac_string) {
+            if stations.contains_key(&station_mac_string) {
                 return Ok(());
             }
-            stations.insert(station_mac_string);
-
             let station = Station {
                 id: 0,
                 mac_address: station_mac.into(),
@@ -89,7 +89,56 @@ async fn extract_data(
                 description: None,
             };
 
-            Station::persist(&station, &pool).await?;
+            let id = Station::persist(&station, &pool).await?;
+
+            stations.insert(station_mac_string, id);
+        }
+        Frame::Data(frame) => {
+            let src = frame.src().expect("Data frames always have a source");
+            let dest = frame.dest();
+
+            // Data frames can go in both directions.
+            // Check if either src or dest is known station, the other one has to be the device.
+            // If none is a known station, we just return.
+            let (station, device_mac) = if let Some(id) = stations.get(&src.to_string()) {
+                (id, dest)
+            } else if let Some(id) = stations.get(&dest.to_string()) {
+                (id, src)
+            } else {
+                return Ok(());
+            };
+
+            // Either get the device id from the known device map.
+            // If it's not in there yet, register a new client and add the client id to the map.
+            let device = if let Some(id) = devices.get(&device_mac.to_string()) {
+                *id
+            } else {
+                let device = Device {
+                    id: 0,
+                    mac_address: device_mac.clone().into(),
+                    nickname: None,
+                    description: None,
+                    station: *station,
+                };
+
+                let id = device.persist(&pool).await?;
+                devices.insert(device_mac.to_string(), id);
+
+                id
+            };
+
+            let mut time = chrono::offset::Local::now().naive_local();
+            time = time.with_second(0).unwrap();
+            time = time.with_nanosecond(0).unwrap();
+
+            let data = Data {
+                time,
+                device,
+                station: *station,
+                amount_per_minute: frame.data.len() as i32,
+            };
+
+            data.persist(pool).await?;
         }
         _ => println!("Ignoring frame: {:?}", frame),
     };

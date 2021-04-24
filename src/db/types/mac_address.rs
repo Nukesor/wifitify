@@ -14,9 +14,9 @@ impl std::ops::Deref for MacAddress {
     }
 }
 
-impl Into<MacAddress> for LibWifiMacAddress {
-    fn into(self) -> MacAddress {
-        MacAddress(self)
+impl From<LibWifiMacAddress> for MacAddress {
+    fn from(mac: LibWifiMacAddress) -> MacAddress {
+        MacAddress(mac)
     }
 }
 

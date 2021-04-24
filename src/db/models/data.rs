@@ -13,7 +13,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub async fn persist(&self, pool: DbPool) -> Result<()> {
+    pub async fn persist(&self, pool: &DbPool) -> Result<()> {
         sqlx::query!(
             "
 INSERT INTO data (time, device, station, amount_per_minute)
@@ -25,7 +25,7 @@ UPDATE SET amount_per_minute = EXCLUDED.amount_per_minute + $4",
             self.station,
             self.amount_per_minute,
         )
-        .execute(&pool)
+        .execute(pool)
         .await?;
 
         Ok(())
