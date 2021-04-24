@@ -27,7 +27,7 @@ CREATE TABLE data (
     time timestamp NOT NULL,
     device integer NOT NULL,
     station integer NOT NULL,
-    amount_per_minute integer,
+    bytes_per_minute integer,
     FOREIGN KEY (device) REFERENCES devices (id),
     FOREIGN KEY (station) REFERENCES stations (id),
     PRIMARY KEY (time, device, station)

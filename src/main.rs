@@ -78,6 +78,8 @@ async fn extract_data(
             let station_mac = frame.src().unwrap().clone();
             let station_mac_string = station_mac.to_string();
 
+            println!("Got station {:?}", frame.station_info.ssid.clone());
+
             // We already know this station
             if stations.contains_key(&station_mac_string) {
                 return Ok(());
@@ -121,7 +123,7 @@ async fn handle_data_frame(
     devices: &mut HashMap<String, i32>,
 ) -> Result<()> {
     // Data frames can go in both directions.
-    // Check if either src or dest is known station, the other one has to be the device.
+    // Check if either src or dest is a known station, the other one has to be the device.
     // If none is a known station, we just return.
     let (station, device_mac) = if let Some(id) = stations.get(&src.to_string()) {
         (id, dest)
@@ -130,6 +132,11 @@ async fn handle_data_frame(
     } else {
         return Ok(());
     };
+
+    // Ignore Ipv6 multicasts
+    if device_mac.is_ipv6_multicast() {
+        return Ok(());
+    }
 
     // Either get the device id from the known device map.
     // If it's not in there yet, register a new client and add the client id to the map.
@@ -158,7 +165,7 @@ async fn handle_data_frame(
         time,
         device,
         station: *station,
-        amount_per_minute: data_length,
+        bytes_per_minute: data_length,
     };
 
     data.persist(pool).await?;
