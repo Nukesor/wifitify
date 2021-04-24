@@ -19,10 +19,11 @@ impl Data {
 INSERT INTO data (time, device, station, bytes_per_minute)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (time, device, station) DO
-UPDATE SET bytes_per_minute = EXCLUDED.bytes_per_minute + $4",
+UPDATE SET bytes_per_minute = data.bytes_per_minute + $5",
             self.time,
             self.device,
             self.station,
+            self.bytes_per_minute,
             self.bytes_per_minute,
         )
         .execute(pool)

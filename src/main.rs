@@ -59,7 +59,6 @@ async fn main() -> Result<()> {
     let mut stations = Station::known_macs(&pool).await?;
     let mut devices = Device::known_macs(&pool).await?;
 
-    println!("Outside: {:?}", &stations);
     loop {
         let frame = receiver.recv()?;
 
@@ -78,43 +77,44 @@ async fn extract_data(
             let station_mac = frame.src().unwrap().clone();
             let station_mac_string = station_mac.to_string();
 
-            println!("Got station {:?}", frame.station_info.ssid.clone());
+            //println!("Got station {:?}", frame.station_info.ssid.clone());
 
             // We already know this station
             if stations.contains_key(&station_mac_string) {
                 return Ok(());
             }
-            let station = Station {
+
+            // Add the station to the database
+            let mut station = Station {
                 id: 0,
                 mac_address: station_mac.into(),
                 ssid: frame.station_info.ssid.clone(),
                 nickname: None,
                 description: None,
             };
+            station.id = Station::persist(&station, &pool).await?;
 
-            let id = Station::persist(&station, &pool).await?;
-
-            stations.insert(station_mac_string, id);
+            stations.insert(station_mac_string, station.id);
         }
         Frame::Data(frame) => {
             let src = frame.src().expect("Data frames always have a source");
             let dest = frame.dest();
 
-            handle_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
+            log_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
         }
         Frame::QosData(frame) => {
             let src = frame.src().expect("Data frames always have a source");
             let dest = frame.dest();
 
-            handle_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
+            log_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
         }
-        _ => println!("Ignoring frame: {:?}", frame),
+        _ => (), // println!("Ignoring frame: {:?}", frame),
     };
 
     Ok(())
 }
 
-async fn handle_data_frame(
+async fn log_data_frame(
     pool: &DbPool,
     src: &MacAddress,
     dest: &MacAddress,
@@ -133,8 +133,8 @@ async fn handle_data_frame(
         return Ok(());
     };
 
-    // Ignore Ipv6 multicasts
-    if device_mac.is_ipv6_multicast() {
+    // Ignore multicasts/broadcasts and other meta stuff.
+    if !device_mac.is_real_device() {
         return Ok(());
     }
 
@@ -143,7 +143,7 @@ async fn handle_data_frame(
     let device = if let Some(id) = devices.get(&device_mac.to_string()) {
         *id
     } else {
-        let device = Device {
+        let mut device = Device {
             id: 0,
             mac_address: device_mac.clone().into(),
             nickname: None,
@@ -151,15 +151,21 @@ async fn handle_data_frame(
             station: *station,
         };
 
-        let id = device.persist(&pool).await?;
-        devices.insert(device_mac.to_string(), id);
+        device.id = device.persist(&pool).await?;
+        devices.insert(device_mac.to_string(), device.id);
 
-        id
+        device.id
     };
 
     let mut time = chrono::offset::Local::now().naive_local();
     time = time.with_second(0).unwrap();
     time = time.with_nanosecond(0).unwrap();
+
+    println!(
+        "Got {} bytes data from/to device {}",
+        data_length,
+        device_mac.to_string()
+    );
 
     let data = Data {
         time,
