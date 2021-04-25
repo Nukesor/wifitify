@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Result};
-use chrono::{Duration, Timelike, Utc};
+use chrono::{Timelike, Utc};
 use clap::Clap;
 use crossbeam_channel::{unbounded, RecvTimeoutError};
 use libwifi::frame::components::MacAddress;
