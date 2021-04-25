@@ -13,6 +13,7 @@ use radiotap::Radiotap;
 mod cli;
 mod db;
 mod device;
+mod state;
 mod wifi;
 
 use crate::cli::CliArguments;
@@ -20,6 +21,7 @@ use crate::wifi::capture::*;
 use db::models::{Data, Device, Station};
 use db::DbPool;
 use device::{get_mhz_to_channel, supported_channels, switch_channel};
+use state::AppState;
 
 #[async_std::main]
 async fn main() -> Result<()> {
@@ -56,10 +58,6 @@ async fn main() -> Result<()> {
     let supported_channels = supported_channels(&opt.device)?;
     info!("Found supported channels: {:?}", supported_channels);
 
-    // Cache for known stations and devices.
-    let mut stations = Station::known_stations(&pool).await?;
-    let mut devices = Device::known_devices(&pool).await?;
-
     std::thread::spawn(move || {
         while let Ok(packet) = capture.next() {
             if let Ok(data) = handle_packet(packet) {
@@ -72,46 +70,22 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Variable used to check when the last full sweep on all channels has been made.
-    //
-    // full_sweep_timeout = We go through all channels and listen for new stations/update old
-    //                      stations every in regular intervals
-    // channel_switch_timeout = The time we listen on each channel during a full sweep.
-    // last_full_sweep: The last time checked all channels for new stations.
-    // last_channel_switch: The last time we switched a channel during full sweep.
-    //
-    // Set the last channel sweep and switch to the past
-    let full_sweep_timeout = Duration::hours(1);
-    let channel_switch_timeout = Duration::seconds(10);
-
-    let mut last_full_sweep = Utc::now()
-        .checked_sub_signed(full_sweep_timeout)
-        .expect("This should happen.");
-    let mut last_channel_switch = Utc::now()
-        .checked_sub_signed(Duration::hours(2))
-        .expect("This should happen.");
+    let mut state = AppState::new();
+    // Initialize database cache for known stations and devices.
+    state.stations = Station::known_stations(&pool).await?;
+    state.devices = Device::known_devices(&pool).await?;
 
     // Channel iterator that's used to walk through all channels
     let mut channel_iter = supported_channels.iter();
 
     loop {
-        let doing_sweep = (Utc::now() - last_full_sweep) > full_sweep_timeout;
+        let doing_sweep = state.should_sweep();
 
         // Try to receive for a few milliseconds.
         // Sometimes we might walk over channels that don't have any active devices.
         // If we would keep listening on those devices, we would be wait forever!
         match receiver.recv_timeout(std::time::Duration::from_millis(250)) {
-            Ok((frame, radiotap)) => {
-                extract_data(
-                    frame,
-                    &pool,
-                    &mut stations,
-                    &mut devices,
-                    &radiotap,
-                    doing_sweep,
-                )
-                .await?
-            }
+            Ok((frame, radiotap)) => extract_data(&pool, &mut state, frame, radiotap).await?,
             Err(RecvTimeoutError::Timeout) => (),
             Err(RecvTimeoutError::Disconnected) => {
                 bail!("The mpsc channel to the receiver thread disconnected.")
@@ -123,7 +97,7 @@ async fn main() -> Result<()> {
             continue;
         }
         // Check whether we should switch the channel right now. Otherwise, just continue.
-        if !((Utc::now() - last_channel_switch) > channel_switch_timeout) {
+        if !state.should_switch_channel() {
             continue;
         }
 
@@ -132,24 +106,22 @@ async fn main() -> Result<()> {
         let next_channel = if let Some(next_channel) = channel_iter.next() {
             *next_channel
         } else {
-            last_full_sweep = Utc::now();
+            state.last_full_sweep = Utc::now();
             info!("Full sweep finished");
             continue;
         };
 
         switch_channel(&opt.device, next_channel)?;
         debug!("Switching to channel {}", next_channel);
-        last_channel_switch = Utc::now();
+        state.last_channel_switch = Utc::now();
     }
 }
 
 async fn extract_data(
-    frame: Frame,
     pool: &DbPool,
-    stations: &mut HashMap<String, Station>,
-    devices: &mut HashMap<String, Device>,
-    radiotap: &Radiotap,
-    update_station_data: bool,
+    state: &mut AppState,
+    frame: Frame,
+    radiotap: Radiotap,
 ) -> Result<()> {
     match frame {
         Frame::Beacon(frame) => {
@@ -159,7 +131,7 @@ async fn extract_data(
             //println!("Got station {:?}", frame.station_info.ssid.clone());
 
             // We already know this station
-            if stations.contains_key(&station_mac_string) {
+            if state.stations.contains_key(&station_mac_string) {
                 return Ok(());
             }
 
@@ -192,19 +164,19 @@ async fn extract_data(
             };
             station.id = Station::persist(&station, &pool).await?;
 
-            stations.insert(station_mac_string, station);
+            state.stations.insert(station_mac_string, station);
         }
         Frame::Data(frame) => {
             let src = frame.src().expect("Data frames always have a source");
             let dest = frame.dest();
 
-            log_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
+            log_data_frame(pool, state, src, dest, frame.data.len() as i32).await?;
         }
         Frame::QosData(frame) => {
             let src = frame.src().expect("Data frames always have a source");
             let dest = frame.dest();
 
-            log_data_frame(pool, src, dest, frame.data.len() as i32, stations, devices).await?;
+            log_data_frame(pool, state, src, dest, frame.data.len() as i32).await?;
         }
         _ => (), // println!("Ignoring frame: {:?}", frame),
     };
@@ -214,18 +186,17 @@ async fn extract_data(
 
 async fn log_data_frame(
     pool: &DbPool,
+    state: &mut AppState,
     src: &MacAddress,
     dest: &MacAddress,
     data_length: i32,
-    stations: &mut HashMap<String, Station>,
-    devices: &mut HashMap<String, Device>,
 ) -> Result<()> {
     // Data frames can go in both directions.
     // Check if either src or dest is a known station, the other one has to be the device.
     // If none is a known station, we just return.
-    let (station, device_mac) = if let Some(id) = stations.get(&src.to_string()) {
+    let (station, device_mac) = if let Some(id) = state.stations.get(&src.to_string()) {
         (id, dest)
-    } else if let Some(id) = stations.get(&dest.to_string()) {
+    } else if let Some(id) = state.stations.get(&dest.to_string()) {
         (id, src)
     } else {
         return Ok(());
@@ -238,7 +209,7 @@ async fn log_data_frame(
 
     // Either get the device id from the known device map.
     // If it's not in there yet, register a new client and add the client id to the map.
-    let device = if let Some(device) = devices.get(&device_mac.to_string()) {
+    let device = if let Some(device) = state.devices.get(&device_mac.to_string()) {
         device
     } else {
         let mut device = Device {
@@ -250,7 +221,10 @@ async fn log_data_frame(
         };
 
         device.id = device.persist(&pool).await?;
-        devices.entry(device_mac.to_string()).or_insert(device)
+        state
+            .devices
+            .entry(device_mac.to_string())
+            .or_insert(device)
     };
 
     // Only track activity on explitly watched stations and devices.
