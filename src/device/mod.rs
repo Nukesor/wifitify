@@ -68,3 +68,16 @@ pub fn supported_channels(device: &String) -> Result<Vec<i32>> {
 
     Ok(channels)
 }
+
+/// Switch the current channel of a device.
+pub fn switch_channel(device: &String, channel: i32) -> Result<()> {
+    // Get the list of supported channels via `iwlist $device channel`.
+    Command::new("iwlist")
+        .arg(device)
+        .arg("channel")
+        .arg(channel.to_string())
+        .output()
+        .context("Couldn't switch channels for device. iwconfig command failed.")?;
+
+    Ok(())
+}

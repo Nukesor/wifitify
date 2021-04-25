@@ -1,12 +1,13 @@
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::Utc;
+use sqlx::types::chrono::DateTime;
 use sqlx::FromRow;
 
 use crate::db::DbPool;
 
 #[derive(FromRow)]
 pub struct Data {
-    pub time: NaiveDateTime,
+    pub time: DateTime<Utc>,
     pub device: i32,
     pub station: i32,
     pub bytes_per_minute: i32,

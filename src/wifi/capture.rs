@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use log::info;
+use log::debug;
 use pcap::{Active, Capture, Device};
 
 use libwifi::*;
@@ -42,7 +42,7 @@ pub fn get_capture(device_name: &str) -> Result<Capture<Active>> {
 fn find_device_by_name(name: &str) -> Result<Device> {
     let devices = Device::list().context("Failed during device lookup:")?;
     for device in devices {
-        info!("Found device {:?}", device.name);
+        debug!("Found device {:?}", device.name);
         if device.name == name {
             return Ok(device);
         }

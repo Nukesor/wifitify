@@ -24,7 +24,7 @@ CREATE TABLE devices (
 CREATE INDEX device_nickname ON devices (nickname);
 
 CREATE TABLE data (
-    time timestamp NOT NULL,
+    time timestamp with time zone NOT NULL,
     device integer NOT NULL,
     station integer NOT NULL,
     bytes_per_minute integer,
