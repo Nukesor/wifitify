@@ -36,34 +36,19 @@ async fn main() -> Result<()> {
     // Initialize the database connection pool
     let pool = db::init_pool().await?;
 
-    // The channel to send Wifi frames from the receiver thread
-    let (sender, receiver) = std::sync::mpsc::channel::<Frame>();
-
-    // The data capture and parsing logic is running in its own thread.
-    // This allows us to have all receiving logic in a non-blocking fashion.
-    // The actual handling of the received frames can then be done in an async fashion, since
-    // there'll be a lot of I/O wait when interacting with the database.
     let mut capture = get_capture(&opt.device)?;
-    std::thread::spawn(move || {
-        while let Ok(packet) = capture.next() {
-            if let Ok(data) = handle_packet(packet) {
-                // Send extracted data to the receiver.
-                // This only errors if the receiver went away, in which case we just bail.
-                if let Err(_) = sender.send(data) {
-                    return;
-                };
-            }
-        }
-    });
 
+    // Cache for known stations and devices.
     let mut stations = Station::known_macs(&pool).await?;
     let mut devices = Device::known_macs(&pool).await?;
 
-    loop {
-        let frame = receiver.recv()?;
-
-        extract_data(frame, &pool, &mut stations, &mut devices).await?;
+    while let Ok(packet) = capture.next() {
+        if let Ok((frame, radiotap)) = handle_packet(packet) {
+            extract_data(frame, &pool, &mut stations, &mut devices).await?;
+        }
     }
+
+    Ok(())
 }
 
 async fn extract_data(

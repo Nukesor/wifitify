@@ -7,14 +7,14 @@ use pcap::Packet;
 use radiotap::Radiotap;
 
 /// Parse the packet received by [pcap](::pcap)
-pub fn handle_packet(packet: Packet) -> Result<Frame> {
+pub fn handle_packet(packet: Packet) -> Result<(Frame, Radiotap)> {
     // Read the raw payload, which
     let radiotap = Radiotap::from_bytes(packet.data)?;
 
     let bytes = &packet.data[radiotap.header.length..];
     let frame = libwifi::parse_frame(bytes)?;
 
-    Ok(frame)
+    Ok((frame, radiotap))
 }
 
 /// Initializes and configures a network device by name.
