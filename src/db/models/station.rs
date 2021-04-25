@@ -13,6 +13,8 @@ pub struct Station {
     pub ssid: Option<String>,
     pub nickname: Option<String>,
     pub description: Option<String>,
+    pub channel: i32,
+    pub watch: bool,
 }
 
 impl Station {
@@ -20,14 +22,15 @@ impl Station {
         let record = sqlx::query!(
             "
 INSERT INTO stations
-(mac_address, ssid, nickname, description)
-VALUES ($1, $2, $3, $4)
+(mac_address, ssid, nickname, description, channel)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id
 ",
             self.mac_address.to_string(),
             self.ssid.clone(),
             self.nickname.clone(),
             self.description.clone(),
+            self.channel,
         )
         .fetch_one(pool)
         .await?;
@@ -35,17 +38,29 @@ RETURNING id
         Ok(record.id)
     }
 
-    pub async fn known_macs(pool: &DbPool) -> Result<HashMap<String, i32>> {
-        let rows = sqlx::query!("SELECT id, mac_address FROM stations")
-            .fetch_all(pool)
-            .await?;
+    pub async fn known_stations(pool: &DbPool) -> Result<HashMap<String, Station>> {
+        let stations: Vec<Station> = sqlx::query_as!(
+            Station,
+            r#"
+SELECT
+    id,
+    mac_address as "mac_address: MacAddress",
+    ssid,
+    nickname,
+    description,
+    channel,
+    watch
+FROM stations
+"#
+        )
+        .fetch_all(pool)
+        .await?;
 
-        let mut macs = HashMap::new();
-        for row in rows {
-            println!("Row: {:?}", row);
-            macs.insert(row.mac_address, row.id);
+        let mut station_map = HashMap::new();
+        for station in stations {
+            station_map.insert(station.mac_address.to_string(), station);
         }
 
-        Ok(macs)
+        Ok(station_map)
     }
 }

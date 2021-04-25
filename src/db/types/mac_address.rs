@@ -3,6 +3,8 @@ use libwifi::frame::components::{MacAddress as LibWifiMacAddress, MacParseError}
 use sqlx::database::HasValueRef;
 use sqlx::{Database, Decode};
 
+use std::str::FromStr;
+
 /// New-type struct so we can implement the database decoder for libwifi's MacAddress struct.
 pub struct MacAddress(LibWifiMacAddress);
 
@@ -41,6 +43,6 @@ where
         let value = <&str as Decode<DB>>::decode(value)?;
 
         // Parse that value via FromStr
-        Ok(value.parse()?)
+        Ok(MacAddress::from_str(value)?)
     }
 }

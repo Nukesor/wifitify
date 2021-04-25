@@ -5,6 +5,7 @@ use chrono::Timelike;
 use clap::Clap;
 use libwifi::frame::components::MacAddress;
 use libwifi::{Addresses, Frame};
+use radiotap::Radiotap;
 use simplelog::{Config, LevelFilter, SimpleLogger};
 
 mod cli;
@@ -15,6 +16,7 @@ use crate::cli::CliArguments;
 use crate::wifi::capture::*;
 use db::models::{Data, Device, Station};
 use db::DbPool;
+use wifi::get_mhz_to_channel;
 
 #[async_std::main]
 async fn main() -> Result<()> {
@@ -34,17 +36,17 @@ async fn main() -> Result<()> {
     SimpleLogger::init(level, Config::default()).unwrap();
 
     // Initialize the database connection pool
-    let pool = db::init_pool().await?;
+    let pool: DbPool = db::init_pool().await?;
 
     let mut capture = get_capture(&opt.device)?;
 
     // Cache for known stations and devices.
-    let mut stations = Station::known_macs(&pool).await?;
-    let mut devices = Device::known_macs(&pool).await?;
+    let mut stations = Station::known_stations(&pool).await?;
+    let mut devices = Device::known_devices(&pool).await?;
 
     while let Ok(packet) = capture.next() {
         if let Ok((frame, radiotap)) = handle_packet(packet) {
-            extract_data(frame, &pool, &mut stations, &mut devices).await?;
+            extract_data(frame, &pool, &mut stations, &mut devices, &radiotap).await?;
         }
     }
 
@@ -54,8 +56,9 @@ async fn main() -> Result<()> {
 async fn extract_data(
     frame: Frame,
     pool: &DbPool,
-    stations: &mut HashMap<String, i32>,
-    devices: &mut HashMap<String, i32>,
+    stations: &mut HashMap<String, Station>,
+    devices: &mut HashMap<String, Device>,
+    radiotap: &Radiotap,
 ) -> Result<()> {
     match frame {
         Frame::Beacon(frame) => {
@@ -69,6 +72,23 @@ async fn extract_data(
                 return Ok(());
             }
 
+            // Ignore the packet, if we cannot get the channel.
+            let channel_mhz = if let Some(channel) = radiotap.channel {
+                channel.freq
+            } else {
+                return Ok(());
+            };
+
+            let channel = if let Some(channel) = get_mhz_to_channel(channel_mhz) {
+                channel
+            } else {
+                println!(
+                    "Couldn't find channel for unknown frequency {}MHz.",
+                    channel_mhz
+                );
+                return Ok(());
+            };
+
             // Add the station to the database
             let mut station = Station {
                 id: 0,
@@ -76,10 +96,12 @@ async fn extract_data(
                 ssid: frame.station_info.ssid.clone(),
                 nickname: None,
                 description: None,
+                watch: false,
+                channel,
             };
             station.id = Station::persist(&station, &pool).await?;
 
-            stations.insert(station_mac_string, station.id);
+            stations.insert(station_mac_string, station);
         }
         Frame::Data(frame) => {
             let src = frame.src().expect("Data frames always have a source");
@@ -104,8 +126,8 @@ async fn log_data_frame(
     src: &MacAddress,
     dest: &MacAddress,
     data_length: i32,
-    stations: &mut HashMap<String, i32>,
-    devices: &mut HashMap<String, i32>,
+    stations: &mut HashMap<String, Station>,
+    devices: &mut HashMap<String, Device>,
 ) -> Result<()> {
     // Data frames can go in both directions.
     // Check if either src or dest is a known station, the other one has to be the device.
@@ -125,22 +147,25 @@ async fn log_data_frame(
 
     // Either get the device id from the known device map.
     // If it's not in there yet, register a new client and add the client id to the map.
-    let device = if let Some(id) = devices.get(&device_mac.to_string()) {
-        *id
+    let device = if let Some(device) = devices.get(&device_mac.to_string()) {
+        device
     } else {
         let mut device = Device {
             id: 0,
             mac_address: device_mac.clone().into(),
             nickname: None,
             description: None,
-            station: *station,
+            watch: true,
         };
 
         device.id = device.persist(&pool).await?;
-        devices.insert(device_mac.to_string(), device.id);
-
-        device.id
+        devices.entry(device_mac.to_string()).or_insert(device)
     };
+
+    // Only track activity on explitly watched stations and devices.
+    if !(station.watch && device.watch) {
+        return Ok(());
+    }
 
     let mut time = chrono::offset::Local::now().naive_local();
     time = time.with_second(0).unwrap();
@@ -154,8 +179,8 @@ async fn log_data_frame(
 
     let data = Data {
         time,
-        device,
-        station: *station,
+        device: device.id,
+        station: station.id,
         bytes_per_minute: data_length,
     };
 
