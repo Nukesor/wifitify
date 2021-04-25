@@ -10,13 +10,14 @@ use simplelog::{Config, LevelFilter, SimpleLogger};
 
 mod cli;
 mod db;
+mod device;
 mod wifi;
 
 use crate::cli::CliArguments;
 use crate::wifi::capture::*;
 use db::models::{Data, Device, Station};
 use db::DbPool;
-use wifi::get_mhz_to_channel;
+use device::{get_mhz_to_channel, supported_channels};
 
 #[async_std::main]
 async fn main() -> Result<()> {
@@ -39,6 +40,8 @@ async fn main() -> Result<()> {
     let pool: DbPool = db::init_pool().await?;
 
     let mut capture = get_capture(&opt.device)?;
+    let supported_channels = supported_channels(&opt.device)?;
+    println!("Found supported channels: {:?}", supported_channels);
 
     // Cache for known stations and devices.
     let mut stations = Station::known_stations(&pool).await?;
