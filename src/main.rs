@@ -114,6 +114,7 @@ async fn main() -> Result<()> {
         switch_channel(&opt.device, next_channel)?;
         debug!("Switching to channel {}", next_channel);
         state.last_channel_switch = Utc::now();
+        channel_iter = supported_channels.iter();
     }
 }
 
