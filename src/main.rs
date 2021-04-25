@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
     state.devices = Device::known_devices(&pool).await?;
 
     // Channel iterator that's used to walk through all channels
-    let mut channel_iter = supported_channels.iter();
+    let mut supported_channel_iter = supported_channels.iter();
 
     loop {
         let doing_sweep = state.should_sweep();
@@ -83,7 +83,9 @@ async fn main() -> Result<()> {
         // Sometimes we might walk over channels that don't have any active devices.
         // If we would keep listening on those devices, we would be wait forever!
         match receiver.recv_timeout(std::time::Duration::from_millis(250)) {
-            Ok((frame, radiotap)) => extract_data(&pool, &mut state, frame, radiotap).await?,
+            Ok((frame, radiotap)) => {
+                extract_data(&pool, &mut state, frame, radiotap, doing_sweep).await?
+            }
             Err(RecvTimeoutError::Timeout) => (),
             Err(RecvTimeoutError::Disconnected) => {
                 bail!("The mpsc channel to the receiver thread disconnected.")
@@ -91,7 +93,15 @@ async fn main() -> Result<()> {
         }
 
         // Check whether we're currently doing a full sweep.
+        // If we aren't, cycle through all watched channels.
         if !doing_sweep {
+            if state.should_switch_channel() {
+                let next_channel = state.get_next_watched_channel();
+                switch_channel(&opt.device, next_channel)?;
+                debug!("Switching to channel {}", next_channel);
+                state.last_channel_switch = Utc::now();
+            }
+
             continue;
         }
         // Check whether we should switch the channel right now. Otherwise, just continue.
@@ -101,18 +111,19 @@ async fn main() -> Result<()> {
 
         // Check if there's another channel we should check.
         // If that's not the case, we set the last full sweep and continue.
-        let next_channel = if let Some(next_channel) = channel_iter.next() {
+        let next_channel = if let Some(next_channel) = supported_channel_iter.next() {
             *next_channel
         } else {
             state.last_full_sweep = Utc::now();
             info!("Full sweep finished");
+            supported_channel_iter = supported_channels.iter();
+            state.update_watched_channels();
             continue;
         };
 
         switch_channel(&opt.device, next_channel)?;
         debug!("Switching to channel {}", next_channel);
         state.last_channel_switch = Utc::now();
-        channel_iter = supported_channels.iter();
     }
 }
 
@@ -121,18 +132,12 @@ async fn extract_data(
     state: &mut AppState,
     frame: Frame,
     radiotap: Radiotap,
+    should_update: bool,
 ) -> Result<()> {
     match frame {
         Frame::Beacon(frame) => {
             let station_mac = frame.src().unwrap().clone();
             let station_mac_string = station_mac.to_string();
-
-            //println!("Got station {:?}", frame.station_info.ssid.clone());
-
-            // We already know this station
-            if state.stations.contains_key(&station_mac_string) {
-                return Ok(());
-            }
 
             // Ignore the packet, if we cannot get the channel.
             let channel_mhz = if let Some(channel) = radiotap.channel {
@@ -151,17 +156,35 @@ async fn extract_data(
                 return Ok(());
             };
 
+            // We already know this station
+            // In case we're doing a full hannel sweep right now, update any station metadata.
+            if let Some(station) = state.stations.get_mut(&station_mac_string) {
+                if should_update {
+                    station.channel = channel;
+                    station.ssid = frame.station_info.ssid.clone();
+                    station.power_level = radiotap.antenna_signal.map(|a| a.value as i32);
+                    station.update_metadata(pool).await?;
+                }
+                return Ok(());
+            }
             // Add the station to the database
             let mut station = Station {
                 id: 0,
                 mac_address: station_mac.into(),
                 ssid: frame.station_info.ssid.clone(),
+                channel,
+                power_level: radiotap.antenna_signal.map(|a| a.value as i32),
                 nickname: None,
                 description: None,
                 watch: false,
-                channel,
             };
             station.id = Station::persist(&station, &pool).await?;
+
+            info!(
+                "Found station {} with ssid: {:?}",
+                station_mac_string,
+                frame.station_info.ssid.clone()
+            );
 
             state.stations.insert(station_mac_string, station);
         }

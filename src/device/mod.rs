@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 use std::process::Command;
 
@@ -115,7 +115,7 @@ pub fn supported_channels(device: &String) -> Result<Vec<i32>> {
             &line
         ))?;
         let channel: i32 = channel
-            .trim_matches('0')
+            .trim_start_matches('0')
             .parse()
             .context(format!("Got invalid channel number from line: {}", &line))?;
 
@@ -128,12 +128,21 @@ pub fn supported_channels(device: &String) -> Result<Vec<i32>> {
 /// Switch the current channel of a device.
 pub fn switch_channel(device: &String, channel: i32) -> Result<()> {
     // Get the list of supported channels via `iwlist $device channel`.
-    Command::new("iwlist")
+    let output = Command::new("iwconfig")
         .arg(device)
         .arg("channel")
         .arg(channel.to_string())
         .output()
         .context("Couldn't switch channels for device. iwconfig command failed.")?;
+
+    if !output.status.success() {
+        println!(
+            "Failed on iwconfig:\n{} \n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        bail!("iwconfig exited unsucessfully");
+    }
 
     Ok(())
 }

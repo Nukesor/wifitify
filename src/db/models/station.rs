@@ -11,9 +11,10 @@ pub struct Station {
     pub id: i32,
     pub mac_address: MacAddress,
     pub ssid: Option<String>,
+    pub channel: i32,
+    pub power_level: Option<i32>,
     pub nickname: Option<String>,
     pub description: Option<String>,
-    pub channel: i32,
     pub watch: bool,
 }
 
@@ -22,8 +23,8 @@ impl Station {
         let record = sqlx::query!(
             "
 INSERT INTO stations
-(mac_address, ssid, nickname, description, channel)
-VALUES ($1, $2, $3, $4, $5)
+(mac_address, ssid, nickname, description, channel, watch)
+VALUES ($1, $2, $3, $4, $5, TRUE)
 RETURNING id
 ",
             self.mac_address.to_string(),
@@ -38,6 +39,26 @@ RETURNING id
         Ok(record.id)
     }
 
+    pub async fn update_metadata(&self, pool: &DbPool) -> Result<()> {
+        sqlx::query!(
+            "
+UPDATE stations
+    SET ssid = $2,
+    channel = $3,
+    power_level = $4
+WHERE id = $1
+",
+            self.id,
+            self.ssid.clone(),
+            self.channel,
+            self.power_level,
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
     pub async fn known_stations(pool: &DbPool) -> Result<HashMap<String, Station>> {
         let stations: Vec<Station> = sqlx::query_as!(
             Station,
@@ -46,10 +67,11 @@ SELECT
     id,
     mac_address as "mac_address: MacAddress",
     ssid,
-    nickname,
-    description,
     channel,
-    watch
+    power_level,
+    watch,
+    nickname,
+    description
 FROM stations
 "#
         )
