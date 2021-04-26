@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
+use log::info;
 
 use crate::db::models::{Device, Station};
 
@@ -37,7 +38,9 @@ impl AppState {
 
         // Set the last channel sweep and switch to the past.
         // That way we start with a sweep right away.
-        let last_full_sweep = Utc::now();
+        let last_full_sweep = Utc::now()
+            .checked_sub_signed(Duration::hours(2))
+            .expect("This should happen.");
         let last_channel_switch = Utc::now()
             .checked_sub_signed(Duration::hours(2))
             .expect("This should happen.");
@@ -73,6 +76,13 @@ impl AppState {
 
         self.watched_channels.sort();
         self.watched_channels.dedup();
+
+        if self.watched_channels.is_empty() {
+            info!("No active stations. Starting next full sweep");
+            self.last_full_sweep = Utc::now()
+                .checked_sub_signed(Duration::hours(2))
+                .expect("This should happen.");
+        }
     }
 
     pub fn get_next_watched_channel(&mut self) -> i32 {
