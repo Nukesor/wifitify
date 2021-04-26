@@ -75,6 +75,8 @@ async fn main() -> Result<()> {
     state.stations = Station::known_stations(&pool).await?;
     state.devices = Device::known_devices(&pool).await?;
     state.station_device_map = DeviceStation::get_station_device_map(&pool).await?;
+    state.update_watched_channels();
+    info!("Watching channels: {:?}", state.watched_channels);
 
     // Channel iterator that's used to walk through all channels
     let mut supported_channel_iter = supported_channels.iter();

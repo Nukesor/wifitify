@@ -37,9 +37,7 @@ impl AppState {
 
         // Set the last channel sweep and switch to the past.
         // That way we start with a sweep right away.
-        let last_full_sweep = Utc::now()
-            .checked_sub_signed(full_sweep_timeout)
-            .expect("This should happen.");
+        let last_full_sweep = Utc::now();
         let last_channel_switch = Utc::now()
             .checked_sub_signed(Duration::hours(2))
             .expect("This should happen.");
@@ -72,6 +70,9 @@ impl AppState {
             .filter(|station| station.watch)
             .map(|station| station.channel)
             .collect::<Vec<i32>>();
+
+        self.watched_channels.sort();
+        self.watched_channels.dedup();
     }
 
     pub fn get_next_watched_channel(&mut self) -> i32 {

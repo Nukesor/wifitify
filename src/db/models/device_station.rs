@@ -22,7 +22,7 @@ VALUES ($1, $2)
             self.device,
             self.station,
         )
-        .fetch_one(pool)
+        .execute(pool)
         .await?;
 
         Ok(())
