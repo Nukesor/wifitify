@@ -1,9 +1,8 @@
 use anyhow::Result;
 use sqlx::FromRow;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use crate::db::types::MacAddress;
 use crate::db::DbPool;
 
 #[derive(FromRow)]
@@ -12,37 +11,34 @@ pub struct DeviceStation {
     pub station: i32,
 }
 
-impl Device {
-    pub async fn persist(&self, pool: &DbPool) -> Result<i32> {
-        let record = sqlx::query!(
+impl DeviceStation {
+    pub async fn persist(&self, pool: &DbPool) -> Result<()> {
+        sqlx::query!(
             "
-INSERT INTO devices
-(mac_address, nickname, description, station)
-VALUES ($1, $2, $3, $4)
-RETURNING id
+INSERT INTO devices_stations
+(device, station)
+VALUES ($1, $2)
 ",
-            self.mac_address.to_string(),
-            self.nickname.clone(),
-            self.description.clone(),
+            self.device,
             self.station,
         )
         .fetch_one(pool)
         .await?;
 
-        Ok(record.id)
+        Ok(())
     }
 
-    pub async fn known_macs(pool: &DbPool) -> Result<HashMap<String, i32>> {
-        let rows = sqlx::query!("SELECT id, mac_address FROM devices")
+    pub async fn get_station_device_map(pool: &DbPool) -> Result<HashMap<i32, HashSet<i32>>> {
+        let rows = sqlx::query_as!(DeviceStation, "SELECT * FROM devices_stations")
             .fetch_all(pool)
             .await?;
 
-        let mut macs = HashMap::new();
+        let mut map = HashMap::new();
         for row in rows {
-            println!("Row: {:?}", row);
-            macs.insert(row.mac_address, row.id);
+            let set = map.entry(row.station).or_insert(HashSet::new());
+            set.insert(row.device);
         }
 
-        Ok(macs)
+        Ok(map)
     }
 }

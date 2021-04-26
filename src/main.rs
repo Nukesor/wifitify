@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Result};
 use chrono::{Timelike, Utc};
 use clap::Clap;
@@ -16,7 +18,7 @@ mod wifi;
 
 use crate::cli::CliArguments;
 use crate::wifi::capture::*;
-use db::models::{Data, Device, Station};
+use db::models::*;
 use db::DbPool;
 use device::{get_mhz_to_channel, supported_channels, switch_channel};
 use state::AppState;
@@ -72,6 +74,7 @@ async fn main() -> Result<()> {
     // Initialize database cache for known stations and devices.
     state.stations = Station::known_stations(&pool).await?;
     state.devices = Device::known_devices(&pool).await?;
+    state.station_device_map = DeviceStation::get_station_device_map(&pool).await?;
 
     // Channel iterator that's used to walk through all channels
     let mut supported_channel_iter = supported_channels.iter();
@@ -118,6 +121,7 @@ async fn main() -> Result<()> {
             info!("Full sweep finished");
             supported_channel_iter = supported_channels.iter();
             state.update_watched_channels();
+            info!("Watched channels are: {:?}", &state.watched_channels);
             continue;
         };
 
@@ -272,6 +276,20 @@ async fn log_data_frame(
     };
 
     data.persist(pool).await?;
+
+    // Register the relationship between device and station, if it's new.
+    let set = state
+        .station_device_map
+        .entry(station.id)
+        .or_insert(HashSet::new());
+    if !set.contains(&device.id) {
+        let device_station = DeviceStation {
+            station: station.id,
+            device: device.id,
+        };
+        device_station.persist(pool).await?;
+        set.insert(device.id);
+    }
 
     Ok(())
 }

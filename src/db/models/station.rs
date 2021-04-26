@@ -23,8 +23,8 @@ impl Station {
         let record = sqlx::query!(
             "
 INSERT INTO stations
-(mac_address, ssid, nickname, description, channel, watch)
-VALUES ($1, $2, $3, $4, $5, TRUE)
+(mac_address, ssid, nickname, description, channel)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id
 ",
             self.mac_address.to_string(),

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
 
@@ -9,6 +9,7 @@ pub struct AppState {
     pub stations: HashMap<String, Station>,
     /// Our local cache for the device database table.
     pub devices: HashMap<String, Device>,
+    pub station_device_map: HashMap<i32, HashSet<i32>>,
 
     /// The list of channels that are currently being scanned.
     pub watched_channels: Vec<i32>,
@@ -32,7 +33,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let full_sweep_timeout = Duration::hours(1);
-        let channel_switch_timeout = Duration::seconds(10);
+        let channel_switch_timeout = Duration::seconds(5);
 
         // Set the last channel sweep and switch to the past.
         // That way we start with a sweep right away.
@@ -46,6 +47,7 @@ impl AppState {
         AppState {
             stations: HashMap::new(),
             devices: HashMap::new(),
+            station_device_map: HashMap::new(),
             watched_channels: Vec::new(),
             current_watched_channels: 1,
             full_sweep_timeout,
