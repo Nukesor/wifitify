@@ -38,9 +38,7 @@ impl AppState {
 
         // Set the last channel sweep and switch to the past.
         // That way we start with a sweep right away.
-        let last_full_sweep = Utc::now()
-            .checked_sub_signed(Duration::hours(2))
-            .expect("This should happen.");
+        let last_full_sweep = Utc::now();
         let last_channel_switch = Utc::now()
             .checked_sub_signed(Duration::hours(2))
             .expect("This should happen.");
