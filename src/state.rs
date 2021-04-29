@@ -6,6 +6,12 @@ use log::info;
 use crate::db::models::{Device, Station};
 
 pub struct AppState {
+    // Flags used for special behavior
+    /// If this is set to `true`, we'll always cycle through all available channels.
+    pub always_sweep: bool,
+    /// If this is set, we'll only list on this channel during normal operations.
+    pub fixed_channel: Option<i32>,
+
     /// Our local cache for the station database table.
     pub stations: HashMap<String, Station>,
     /// Our local cache for the device database table.
@@ -44,6 +50,8 @@ impl AppState {
             .expect("This should happen.");
 
         AppState {
+            always_sweep: false,
+            fixed_channel: Some(11),
             stations: HashMap::new(),
             devices: HashMap::new(),
             station_device_map: HashMap::new(),
@@ -58,6 +66,12 @@ impl AppState {
 
     pub fn should_sweep(&self) -> bool {
         (Utc::now() - self.last_full_sweep) > self.full_sweep_timeout
+    }
+
+    pub fn schedule_sweep(&mut self) {
+        self.last_full_sweep = Utc::now()
+            .checked_sub_signed(Duration::hours(2))
+            .expect("This should happen.");
     }
 
     pub fn should_switch_channel(&self) -> bool {
@@ -77,15 +91,22 @@ impl AppState {
 
         if self.watched_channels.is_empty() {
             info!("No active stations. Starting next full sweep");
-            self.last_full_sweep = Utc::now()
-                .checked_sub_signed(Duration::hours(2))
-                .expect("This should happen.");
+            self.schedule_sweep();
         }
     }
 
-    pub fn get_next_watched_channel(&mut self) -> i32 {
+    pub fn get_next_watched_channel(&mut self) -> Option<i32> {
+        // Get the fixed channel if it's set
+        if let Some(channel) = self.fixed_channel {
+            return Some(channel);
+        }
+
+        // Reschedule a full sweep, in case there aren't any watched cannels.
         if self.watched_channels.is_empty() {
-            return 0;
+            info!("No active stations. Starting next full sweep");
+            self.schedule_sweep();
+
+            return None;
         }
 
         self.current_watched_channels += 1;
@@ -93,6 +114,6 @@ impl AppState {
             self.current_watched_channels = 0;
         }
 
-        self.watched_channels[self.current_watched_channels as usize]
+        Some(self.watched_channels[self.current_watched_channels as usize])
     }
 }

@@ -2,6 +2,7 @@ use anyhow::{bail, Context, Result};
 use log::debug;
 use pcap::{Active, Capture, Device};
 
+use libwifi::error::Error;
 use libwifi::*;
 use pcap::Packet;
 use radiotap::Radiotap;
@@ -12,7 +13,29 @@ pub fn handle_packet(packet: Packet) -> Result<(Frame, Radiotap)> {
     let radiotap = Radiotap::from_bytes(packet.data)?;
 
     let bytes = &packet.data[radiotap.header.length..];
-    let frame = libwifi::parse_frame(bytes)?;
+    debug!("Raw bytes: {:?}", bytes);
+    let frame = libwifi::parse_frame(bytes);
+
+    let frame = if let Err(err) = frame {
+        match err {
+            Error::UnhandledFrameSubtype(control, bytes) => {
+                debug!("Unhandled frame: {:?}", control);
+                debug!("Bytes: {:?}", bytes);
+                bail!("Error");
+            }
+            Error::Failure(message, bytes) => {
+                debug!("Failed to parse frame: {}", message);
+                debug!("Bytes: {:?}", bytes);
+                bail!("Error");
+            }
+            Error::Incomplete(message) => {
+                debug!("Frame is incomplete: {}", &message);
+                bail!("Error");
+            }
+        }
+    } else {
+        frame.unwrap()
+    };
 
     Ok((frame, radiotap))
 }

@@ -60,12 +60,15 @@ async fn main() -> Result<()> {
 
     std::thread::spawn(move || {
         while let Ok(packet) = capture.next() {
-            if let Ok(data) = handle_packet(packet) {
+            let data = handle_packet(packet);
+            if let Ok(data) = data {
                 // Send extracted data to the receiver.
                 // This only errors if the receiver went away, in which case we just bail.
                 if let Err(_) = sender.send(data) {
                     return;
                 };
+            } else {
+                //println!("Got error: {:?}", data);
             }
         }
     });
@@ -101,10 +104,11 @@ async fn main() -> Result<()> {
         // If we aren't, cycle through all watched channels.
         if !doing_sweep {
             if state.should_switch_channel() {
-                let next_channel = state.get_next_watched_channel();
-                switch_channel(&opt.device, next_channel)?;
-                debug!("Switching to channel {}", next_channel);
-                state.last_channel_switch = Utc::now();
+                if let Some(channel) = state.get_next_watched_channel() {
+                    switch_channel(&opt.device, 11)?;
+                    debug!("Switching to channel {}", channel);
+                    state.last_channel_switch = Utc::now();
+                }
             }
 
             continue;
@@ -119,11 +123,16 @@ async fn main() -> Result<()> {
         let next_channel = if let Some(next_channel) = supported_channel_iter.next() {
             *next_channel
         } else {
-            state.last_full_sweep = Utc::now();
             info!("Full sweep finished");
             supported_channel_iter = supported_channels.iter();
             state.update_watched_channels();
             info!("Watched channels are: {:?}", &state.watched_channels);
+
+            if state.always_sweep {
+                state.schedule_sweep()
+            } else {
+                state.last_full_sweep = Utc::now();
+            }
             continue;
         };
 
@@ -264,10 +273,10 @@ async fn log_data_frame(
     time = time.with_second(0).unwrap();
     time = time.with_nanosecond(0).unwrap();
 
+    let device_name = device.nickname.clone().unwrap_or(device_mac.to_string());
     debug!(
         "Got {} bytes data from/to device {}",
-        data_length,
-        device_mac.to_string()
+        data_length, device_name
     );
 
     let data = Data {
