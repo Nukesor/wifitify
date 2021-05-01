@@ -5,6 +5,7 @@ use chrono::{Timelike, Utc};
 use clap::Clap;
 use crossbeam_channel::{unbounded, RecvTimeoutError};
 use libwifi::frame::components::MacAddress;
+use libwifi::frame::BlockAckInfo;
 use libwifi::{Addresses, Frame};
 use log::{debug, info, warn, LevelFilter};
 use pretty_env_logger::formatted_builder;
@@ -214,6 +215,22 @@ async fn extract_data(
             let dest = frame.dest();
 
             log_data_frame(pool, state, src, dest, frame.data.len() as i32).await?;
+        }
+        Frame::BlockAck(frame) => {
+            let src = frame
+                .src()
+                .expect("BlockAck frames always have a source")
+                .clone();
+            let dest = frame.dest().clone();
+
+            match frame.acks {
+                BlockAckInfo::Basic(_) => {
+                    log_data_frame(pool, state, &src, &dest, 100).await?;
+                }
+                BlockAckInfo::Compressed(acks) => {
+                    log_data_frame(pool, state, &src, &dest, (acks.len() * 500) as i32).await?;
+                }
+            }
         }
         _ => (), // println!("Ignoring frame: {:?}", frame),
     };

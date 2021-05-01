@@ -51,7 +51,7 @@ impl AppState {
 
         AppState {
             always_sweep: false,
-            fixed_channel: Some(11),
+            fixed_channel: None,
             stations: HashMap::new(),
             devices: HashMap::new(),
             station_device_map: HashMap::new(),
