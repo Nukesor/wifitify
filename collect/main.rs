@@ -12,15 +12,15 @@ use pretty_env_logger::formatted_builder;
 use radiotap::Radiotap;
 
 mod cli;
-mod db;
 mod device;
 mod state;
 mod wifi;
 
+use wifitify::db::models::*;
+use wifitify::db::DbPool;
+
 use crate::cli::CliArguments;
 use crate::wifi::capture::*;
-use db::models::*;
-use db::DbPool;
 use device::{get_mhz_to_channel, supported_channels, switch_channel};
 use state::AppState;
 
@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
         .init();
 
     // Initialize the database connection pool
-    let pool: DbPool = db::init_pool().await?;
+    let pool: DbPool = wifitify::db::init_pool().await?;
 
     // The channel to send Wifi frames from the receiver thread
     let (sender, receiver) = unbounded::<(Frame, Radiotap)>();
@@ -253,11 +253,19 @@ async fn log_data_frame(
     } else if let Some(id) = state.stations.get(&dest.to_string()) {
         (id, src)
     } else {
+        println!(
+            "Ignored packet with src: {}, dest: {}",
+            src.to_string(),
+            dest.to_string()
+        );
         return Ok(());
     };
 
+    println!("Device mac: {}", device_mac.to_string());
+
     // Ignore multicasts/broadcasts and other meta stuff.
     if !device_mac.is_real_device() {
+        println!("Real mac: {}", device_mac.is_real_device());
         return Ok(());
     }
 

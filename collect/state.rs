@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use chrono::{DateTime, Duration, Utc};
 use log::info;
 
-use crate::db::models::{Device, Station};
+use wifitify::db::models::{Device, Station};
 
 pub struct AppState {
     // Flags used for special behavior
