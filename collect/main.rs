@@ -24,7 +24,7 @@ use crate::wifi::capture::*;
 use device::{get_mhz_to_channel, supported_channels, switch_channel};
 use state::AppState;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     // Beautify panics for better debug output.
     better_panic::install();
