@@ -85,9 +85,13 @@ async fn main() -> Result<()> {
     // Channel iterator that's used to walk through all channels
     let mut supported_channel_iter = supported_channels.iter();
 
+    // If the user always wants to sweep on the first run, immediately schedule a sweep.
+    if state.sweep_on_first_run {
+        state.schedule_sweep();
+    }
+
     loop {
         let doing_sweep = state.should_sweep();
-
         // Try to receive for a few milliseconds.
         // Sometimes we might walk over channels that don't have any active devices.
         // If we would keep listening on those devices, we would be wait forever!
@@ -106,7 +110,7 @@ async fn main() -> Result<()> {
         if !doing_sweep {
             if state.should_switch_channel() {
                 if let Some(channel) = state.get_next_watched_channel() {
-                    switch_channel(&opt.device, 11)?;
+                    switch_channel(&opt.device, channel)?;
                     debug!("Switching to channel {}", channel);
                     state.last_channel_switch = Utc::now();
                 }
@@ -253,19 +257,11 @@ async fn log_data_frame(
     } else if let Some(id) = state.stations.get(&dest.to_string()) {
         (id, src)
     } else {
-        println!(
-            "Ignored packet with src: {}, dest: {}",
-            src.to_string(),
-            dest.to_string()
-        );
         return Ok(());
     };
 
-    println!("Device mac: {}", device_mac.to_string());
-
     // Ignore multicasts/broadcasts and other meta stuff.
     if !device_mac.is_real_device() {
-        println!("Real mac: {}", device_mac.is_real_device());
         return Ok(());
     }
 

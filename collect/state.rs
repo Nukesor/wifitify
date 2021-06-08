@@ -8,6 +8,8 @@ use wifitify::db::models::{Device, Station};
 pub struct AppState {
     // Flags used for special behavior
     /// If this is set to `true`, we'll always cycle through all available channels.
+    pub sweep_on_first_run: bool,
+    /// If this is set to `true`, we'll always cycle through all available channels.
     pub always_sweep: bool,
     /// If this is set, we'll only list on this channel during normal operations.
     pub fixed_channel: Option<i32>,
@@ -40,7 +42,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let full_sweep_timeout = Duration::hours(1);
-        let channel_switch_timeout = Duration::seconds(5);
+        let channel_switch_timeout = Duration::milliseconds(250);
 
         // Set the last channel sweep and switch to the past.
         // That way we start with a sweep right away.
@@ -50,6 +52,7 @@ impl AppState {
             .expect("This should happen.");
 
         AppState {
+            sweep_on_first_run: false,
             always_sweep: false,
             fixed_channel: None,
             stations: HashMap::new(),
@@ -71,7 +74,7 @@ impl AppState {
     pub fn schedule_sweep(&mut self) {
         self.last_full_sweep = Utc::now()
             .checked_sub_signed(Duration::hours(2))
-            .expect("This should happen.");
+            .expect("This shouldn't happen.");
     }
 
     pub fn should_switch_channel(&self) -> bool {
