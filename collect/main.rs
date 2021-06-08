@@ -45,8 +45,11 @@ async fn main() -> Result<()> {
         .filter(Some("sqlx::query"), LevelFilter::Error)
         .init();
 
+    // Initialize app state and configuration
+    let mut state = AppState::new()?;
+
     // Initialize the database connection pool
-    let pool: DbPool = wifitify::db::init_pool().await?;
+    let pool: DbPool = wifitify::db::init_pool(&state.config.database_url).await?;
 
     // The channel to send Wifi frames from the receiver thread
     let (sender, receiver) = unbounded::<(Frame, Radiotap)>();
@@ -74,7 +77,6 @@ async fn main() -> Result<()> {
         }
     });
 
-    let mut state = AppState::new();
     // Initialize database cache for known stations and devices.
     state.stations = Station::known_stations(&pool).await?;
     state.devices = Device::known_devices(&pool).await?;
@@ -86,7 +88,7 @@ async fn main() -> Result<()> {
     let mut supported_channel_iter = supported_channels.iter();
 
     // If the user always wants to sweep on the first run, immediately schedule a sweep.
-    if state.sweep_on_first_run {
+    if state.config.collector.sweep_on_startup {
         state.schedule_sweep();
     }
 
@@ -133,7 +135,7 @@ async fn main() -> Result<()> {
             state.update_watched_channels();
             info!("Watched channels are: {:?}", &state.watched_channels);
 
-            if state.always_sweep {
+            if state.config.collector.always_sweep {
                 state.schedule_sweep()
             } else {
                 state.last_full_sweep = Utc::now();

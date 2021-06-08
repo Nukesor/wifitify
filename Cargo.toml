@@ -11,7 +11,7 @@ name = "wifitify-collect"
 path = "collect/main.rs"
 
 [[bin]]
-name = "wifitifiy-server"
+name = "wifitify-server"
 path = "server/main.rs"
 
 [lib]
@@ -44,3 +44,7 @@ sqlx = { version = "0.5", features = [ "runtime-async-std-rustls", "postgres", "
 
 # General purpose
 crossbeam-channel = "0.5"
+serde = "1"
+serde_derive = "1"
+toml = "0.5"
+dirs = "3"
