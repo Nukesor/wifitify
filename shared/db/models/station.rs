@@ -4,7 +4,7 @@ use sqlx::FromRow;
 use std::collections::HashMap;
 
 use crate::db::types::MacAddress;
-use crate::db::DbPool;
+use crate::db::Connection;
 
 #[derive(FromRow)]
 pub struct Station {
@@ -19,7 +19,34 @@ pub struct Station {
 }
 
 impl Station {
-    pub async fn persist(&self, pool: &DbPool) -> Result<i32> {
+    pub async fn get_by_mac<T: ToString>(
+        connection: &mut Connection,
+        mac_address: &T,
+    ) -> Result<Option<Self>> {
+        let record = sqlx::query_as!(
+            Station,
+            r#"
+SELECT
+    id,
+    mac_address as "mac_address: MacAddress",
+    ssid,
+    channel,
+    power_level,
+    watch,
+    nickname,
+    description
+FROM stations
+WHERE mac_address = $1
+"#,
+            mac_address.to_string(),
+        )
+        .fetch_optional(connection)
+        .await?;
+
+        Ok(record)
+    }
+
+    pub async fn persist(&mut self, connection: &mut Connection) -> Result<i32> {
         let record = sqlx::query!(
             "
 INSERT INTO stations
@@ -33,13 +60,14 @@ RETURNING id
             self.description.clone(),
             self.channel,
         )
-        .fetch_one(pool)
+        .fetch_one(connection)
         .await?;
 
+        self.id = record.id;
         Ok(record.id)
     }
 
-    pub async fn update_metadata(&self, pool: &DbPool) -> Result<()> {
+    pub async fn update_metadata(&self, connection: &mut Connection) -> Result<()> {
         sqlx::query!(
             "
 UPDATE stations
@@ -53,13 +81,13 @@ WHERE id = $1
             self.channel,
             self.power_level,
         )
-        .execute(pool)
+        .execute(connection)
         .await?;
 
         Ok(())
     }
 
-    pub async fn known_stations(pool: &DbPool) -> Result<HashMap<String, Station>> {
+    pub async fn known_stations(connection: &mut Connection) -> Result<HashMap<String, Station>> {
         let stations: Vec<Station> = sqlx::query_as!(
             Station,
             r#"
@@ -75,7 +103,7 @@ SELECT
 FROM stations
 "#
         )
-        .fetch_all(pool)
+        .fetch_all(connection)
         .await?;
 
         let mut station_map = HashMap::new();

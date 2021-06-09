@@ -17,9 +17,9 @@ pub fn handle_packet(packet: Packet) -> Result<(Frame, Radiotap)> {
 
     let frame = if let Err(err) = frame {
         match err {
-            Error::UnhandledFrameSubtype(control, _) => {
-                debug!("Unhandled frame: {:?}", control);
-                debug!("Bytes: {:?}", bytes);
+            Error::UnhandledFrameSubtype(_control, _) => {
+                //debug!("Unhandled frame: {:?}", control);
+                //debug!("Bytes: {:?}", bytes);
                 bail!("Error");
             }
             Error::Failure(message, _) => {

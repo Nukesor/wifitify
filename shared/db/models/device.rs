@@ -4,7 +4,7 @@ use sqlx::FromRow;
 use std::collections::HashMap;
 
 use crate::db::types::MacAddress;
-use crate::db::DbPool;
+use crate::db::Connection;
 
 #[derive(FromRow)]
 pub struct Device {
@@ -16,7 +16,31 @@ pub struct Device {
 }
 
 impl Device {
-    pub async fn persist(&self, pool: &DbPool) -> Result<i32> {
+    pub async fn get_by_mac<T: ToString>(
+        connection: &mut Connection,
+        mac_address: &T,
+    ) -> Result<Option<Device>> {
+        let device = sqlx::query_as!(
+            Device,
+            r#"
+SELECT
+    id,
+    mac_address as "mac_address: MacAddress",
+    nickname,
+    description,
+    watch
+FROM devices
+WHERE mac_address = $1
+"#,
+            mac_address.to_string()
+        )
+        .fetch_optional(connection)
+        .await?;
+
+        Ok(device)
+    }
+
+    pub async fn persist(&mut self, connection: &mut Connection) -> Result<i32> {
         let record = sqlx::query!(
             "
 INSERT INTO devices
@@ -28,13 +52,14 @@ RETURNING id
             self.nickname.clone(),
             self.description.clone(),
         )
-        .fetch_one(pool)
+        .fetch_one(connection)
         .await?;
 
+        self.id = record.id;
         Ok(record.id)
     }
 
-    pub async fn known_devices(pool: &DbPool) -> Result<HashMap<String, Device>> {
+    pub async fn known_devices(connection: &mut Connection) -> Result<HashMap<String, Device>> {
         let devices: Vec<Device> = sqlx::query_as!(
             Device,
             r#"
@@ -46,7 +71,7 @@ SELECT
     watch
 FROM devices"#
         )
-        .fetch_all(pool)
+        .fetch_all(connection)
         .await?;
 
         let mut device_map = HashMap::new();

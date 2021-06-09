@@ -3,7 +3,7 @@ use chrono::Utc;
 use sqlx::types::chrono::DateTime;
 use sqlx::FromRow;
 
-use crate::db::DbPool;
+use crate::db::Connection;
 
 #[derive(FromRow)]
 pub struct Data {
@@ -14,7 +14,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub async fn persist(&self, pool: &DbPool) -> Result<()> {
+    pub async fn persist(&self, connection: &mut Connection) -> Result<()> {
         sqlx::query!(
             "
 INSERT INTO data (time, device, station, bytes_per_minute)
@@ -27,7 +27,7 @@ UPDATE SET bytes_per_minute = data.bytes_per_minute + $5",
             self.bytes_per_minute,
             self.bytes_per_minute,
         )
-        .execute(pool)
+        .execute(connection)
         .await?;
 
         Ok(())

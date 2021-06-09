@@ -5,7 +5,8 @@ use chrono::{DateTime, Duration, Utc};
 use log::info;
 
 use wifitify::config::Config;
-use wifitify::db::models::{Device, Station};
+use wifitify::db::models::*;
+use wifitify::db::Connection;
 
 pub struct AppState {
     /// The current configuration
@@ -39,7 +40,7 @@ impl AppState {
             .checked_sub_signed(Duration::hours(2))
             .expect("This should happen.");
 
-        Ok(AppState {
+        let mut state = AppState {
             config: Config::new()?,
 
             stations: HashMap::new(),
@@ -49,7 +50,25 @@ impl AppState {
             current_watched_channels: 0,
             last_full_sweep,
             last_channel_switch,
-        })
+        };
+
+        // If the user wants to always sweep on the first run, immediately schedule a sweep.
+        if state.config.collector.sweep_on_startup {
+            state.schedule_sweep();
+        }
+
+        Ok(state)
+    }
+
+    pub async fn update_state(&mut self, connection: &mut Connection) -> Result<()> {
+        // Initialize database cache for known stations and devices.
+        self.stations = Station::known_stations(connection).await?;
+        self.devices = Device::known_devices(connection).await?;
+        self.station_device_map = DeviceStation::get_station_device_map(connection).await?;
+        self.update_watched_channels();
+        info!("Watching channels: {:?}", self.watched_channels);
+
+        Ok(())
     }
 
     /// Returns, whether it's time to do the next full sweep.
@@ -85,7 +104,7 @@ impl AppState {
             .map(|station| station.channel)
             .collect::<Vec<i32>>();
 
-        self.watched_channels.sort();
+        self.watched_channels.sort_unstable();
         self.watched_channels.dedup();
 
         if self.watched_channels.is_empty() {

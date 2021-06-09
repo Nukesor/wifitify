@@ -3,7 +3,7 @@ use anyhow::{bail, Context, Result};
 use std::process::Command;
 
 /// Map a MHz number to the respective WiFi channel.
-pub fn supported_channels(device: &String) -> Result<Vec<i32>> {
+pub fn supported_channels(device: &str) -> Result<Vec<i32>> {
     // Get the list of supported channels via `iwlist $device channel`.
     let output = Command::new("iwlist")
         .arg(device)
@@ -49,7 +49,7 @@ pub fn supported_channels(device: &String) -> Result<Vec<i32>> {
 }
 
 /// Switch the current channel of a device.
-pub fn switch_channel(device: &String, channel: i32) -> Result<()> {
+pub fn switch_channel(device: &str, channel: i32) -> Result<()> {
     // Get the list of supported channels via `iwlist $device channel`.
     let output = Command::new("iwconfig")
         .arg(device)
