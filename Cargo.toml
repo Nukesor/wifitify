@@ -10,10 +10,6 @@ edition = "2018"
 name = "wifitify-collect"
 path = "collect/main.rs"
 
-[[bin]]
-name = "wifitify-server"
-path = "server/main.rs"
-
 [lib]
 name = "wifitify"
 path = "shared/lib.rs"
