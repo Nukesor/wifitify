@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     let opt = CliArguments::parse();
 
     // Initalize everything
-    let (mut state, pool) = init_app(opt.verbose).await?;
+    let (mut state, mut pool) = init_app(opt.verbose).await?;
 
     // Initialize the channel used to send Wifi frames from the receiver thread.
     // Spawn the packet receiver thread afterwards.
@@ -37,6 +37,11 @@ async fn main() -> Result<()> {
     let supported_channels = supported_channels(&opt.device)?;
     let mut supported_channel_iter = supported_channels.iter();
     info!("Found supported channels: {:?}", supported_channels);
+
+    // Load all devices and stations from the database.
+    // While doing so, we also determine, which channels should be watched depending on the watched
+    // stations we get from the database.
+    state.init_state(&mut pool, &supported_channels).await?;
 
     loop {
         let doing_sweep = state.should_sweep();
@@ -81,7 +86,7 @@ async fn main() -> Result<()> {
         } else {
             info!("Full sweep finished");
             supported_channel_iter = supported_channels.iter();
-            state.update_watched_channels();
+            state.update_watched_channels(&supported_channels);
             info!("Watched channels are: {:?}", &state.watched_channels);
 
             if state.config.collector.always_sweep {
@@ -120,12 +125,10 @@ async fn init_app(verbosity: u8) -> Result<(AppState, DbPool)> {
         .init();
 
     // Initialize app state and configuration
-    let mut state = AppState::new()?;
+    let state = AppState::new()?;
 
     // Initialize the database connection pool and mirror the database state into the state
     let pool: DbPool = wifitify::db::init_pool(&state.config.database_url).await?;
-    let mut connection = pool.acquire().await?;
-    state.update_state(&mut connection).await?;
 
     Ok((state, pool))
 }

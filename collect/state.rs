@@ -6,7 +6,7 @@ use log::info;
 
 use wifitify::config::Config;
 use wifitify::db::models::*;
-use wifitify::db::Connection;
+use wifitify::db::DbPool;
 
 pub struct AppState {
     /// The current configuration
@@ -60,12 +60,21 @@ impl AppState {
         Ok(state)
     }
 
-    pub async fn update_state(&mut self, connection: &mut Connection) -> Result<()> {
+    pub async fn init_state(
+        &mut self,
+        pool: &mut DbPool,
+        supported_channels: &[i32],
+    ) -> Result<()> {
+        let mut connection = pool
+            .acquire()
+            .await
+            .expect("Couldn't get connection during state initialization");
+
         // Initialize database cache for known stations and devices.
-        self.stations = Station::known_stations(connection).await?;
-        self.devices = Device::known_devices(connection).await?;
-        self.station_device_map = DeviceStation::get_station_device_map(connection).await?;
-        self.update_watched_channels();
+        self.stations = Station::known_stations(&mut connection).await?;
+        self.devices = Device::known_devices(&mut connection).await?;
+        self.station_device_map = DeviceStation::get_station_device_map(&mut connection).await?;
+        self.update_watched_channels(supported_channels);
         info!("Watching channels: {:?}", self.watched_channels);
 
         Ok(())
@@ -96,11 +105,11 @@ impl AppState {
     }
 
     /// Update the list of unqiue channels that are used by any of the watched stations.
-    pub fn update_watched_channels(&mut self) {
+    pub fn update_watched_channels(&mut self, supported_channels: &[i32]) {
         self.watched_channels = self
             .stations
             .values()
-            .filter(|station| station.watch)
+            .filter(|station| station.watch && supported_channels.contains(&station.channel))
             .map(|station| station.channel)
             .collect::<Vec<i32>>();
 
