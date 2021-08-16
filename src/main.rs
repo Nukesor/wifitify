@@ -8,15 +8,16 @@ use pretty_env_logger::formatted_builder;
 use radiotap::Radiotap;
 
 mod cli;
+mod config;
 mod data;
+mod db;
 mod device;
 mod listener;
 mod state;
 mod wifi;
 
-use wifitify::db::DbPool;
-
-use crate::cli::CliArguments;
+use cli::CliArguments;
+use db::DbPool;
 use device::{supported_channels, switch_channel};
 use state::AppState;
 
@@ -128,7 +129,7 @@ async fn init_app(verbosity: u8) -> Result<(AppState, DbPool)> {
     let state = AppState::new()?;
 
     // Initialize the database connection pool and mirror the database state into the state
-    let pool: DbPool = wifitify::db::init_pool(&state.config.database_url).await?;
+    let pool: DbPool = db::init_pool(&state.config.database_url).await?;
 
     Ok((state, pool))
 }

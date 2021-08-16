@@ -6,9 +6,8 @@ use libwifi::{Addresses, Frame};
 use log::{debug, info, warn};
 use radiotap::Radiotap;
 
-use wifitify::db::models::*;
-use wifitify::db::{Connection, DbPool};
-
+use crate::db::models::*;
+use crate::db::{Connection, DbPool};
 use crate::device::get_mhz_to_channel;
 
 pub async fn handle_packet(pool: DbPool, frame: Frame, radiotap: Radiotap, doing_sweep: bool) {

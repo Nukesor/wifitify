@@ -4,9 +4,9 @@ use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use log::info;
 
-use wifitify::config::Config;
-use wifitify::db::models::*;
-use wifitify::db::DbPool;
+use crate::config::Config;
+use crate::db::models::*;
+use crate::db::DbPool;
 
 pub struct AppState {
     /// The current configuration

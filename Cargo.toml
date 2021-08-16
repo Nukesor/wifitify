@@ -6,15 +6,6 @@ authors = ["Arne Beer <contact@arne.beer>"]
 keywords = ["wifi", "montior", "hooks", "events"]
 edition = "2018"
 
-[[bin]]
-name = "wifitify-collect"
-path = "collect/main.rs"
-
-[lib]
-name = "wifitify"
-path = "shared/lib.rs"
-
-
 [dependencies]
 # Error handling
 anyhow = "1"
