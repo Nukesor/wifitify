@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use chrono::Utc;
-use clap::Clap;
+use clap::Parser;
 use crossbeam_channel::{unbounded, RecvTimeoutError};
 use libwifi::Frame;
 use log::{debug, info, LevelFilter};
