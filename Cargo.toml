@@ -7,12 +7,26 @@ keywords = ["wifi", "montior", "hooks", "events"]
 edition = "2018"
 
 [dependencies]
-# Error handling
 anyhow = "1"
 better-panic = "0.3"
-
-# Async runtime
+chrono = "0.4"
+clap = { version = "4", features = ["derive", "cargo"] }
+crossbeam-channel = "0.5"
+dirs = "4"
 futures = "0.3"
+libwifi = { path = "../../libraries/libwifi" }
+log = "0.4"
+pcap = { version = "0.11", features = ['capture-stream'] }
+pretty_env_logger = "0.4"
+radiotap = "1.3"
+serde = "1"
+serde_derive = "1"
+sqlx = { version = "0.6", features = [
+  "runtime-tokio-rustls",
+  "postgres",
+  "chrono",
+  "migrate",
+] }
 tokio = { version = "1", features = [
   "rt-multi-thread",
   "time",
@@ -20,29 +34,4 @@ tokio = { version = "1", features = [
   "io-std",
   "io-util",
 ] }
-
-# Cli
-clap = { version = "3", features = ["derive", "cargo"] }
-log = "0.4"
-pretty_env_logger = "0.4"
-
-# Wifi related
-libwifi = { path = "../../libraries/libwifi" }
-pcap = { version = "0.9", features = ['capture-stream'] }
-radiotap = "1.3"
-
-# Database
-chrono = "0.4"
-sqlx = { version = "0.5", features = [
-  "runtime-tokio-rustls",
-  "postgres",
-  "chrono",
-  "migrate",
-] }
-
-# General purpose
-crossbeam-channel = "0.5"
-serde = "1"
-serde_derive = "1"
 toml = "0.5"
-dirs = "4"

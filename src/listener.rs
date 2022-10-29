@@ -15,7 +15,7 @@ pub fn init_packet_listener_thread(device: &str, sender: Sender<(Frame, Radiotap
     let mut capture = get_capture(device)?;
 
     std::thread::spawn(move || {
-        while let Ok(packet) = capture.next() {
+        while let Ok(packet) = capture.next_packet() {
             let data = handle_packet(packet);
             if let Ok(data) = data {
                 // Send extracted data to the receiver.
