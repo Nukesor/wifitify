@@ -75,7 +75,7 @@ impl Config {
         };
 
         let config = toml::to_string(&self)?;
-        file.write_all(&config.as_bytes())?;
+        file.write_all(config.as_bytes())?;
 
         Ok(())
     }
