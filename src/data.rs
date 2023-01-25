@@ -41,7 +41,7 @@ pub async fn handle_packet(pool: DbPool, frame: Frame, radiotap: Radiotap, doing
 
     let result = extract_data(&mut connection, frame, radiotap, doing_sweep).await;
     if let Err(err) = result {
-        println!("Got error while handling packet {:?}", err)
+        println!("Got error while handling packet {err:?}")
     };
 }
 
