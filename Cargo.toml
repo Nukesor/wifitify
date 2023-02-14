@@ -14,7 +14,8 @@ clap = { version = "4", features = ["derive", "cargo"] }
 crossbeam-channel = "0.5"
 dirs = "4"
 futures = "0.3"
-libwifi = { path = "../../libraries/libwifi" }
+#libwifi = { path = "../../libraries/libwifi/libwifi" }
+libwifi = "0.3"
 log = "0.4"
 pcap = { version = "1", features = ['capture-stream'] }
 pretty_env_logger = "0.4"
@@ -34,4 +35,4 @@ tokio = { version = "1", features = [
   "io-std",
   "io-util",
 ] }
-toml = "0.6"
+toml = "0.7"
