@@ -40,7 +40,7 @@ WHERE mac_address = $1
 "#,
             mac_address.to_string(),
         )
-        .fetch_optional(connection)
+        .fetch_optional(&mut **connection)
         .await?;
 
         Ok(record)
@@ -60,7 +60,7 @@ RETURNING id
             self.description.clone(),
             self.channel,
         )
-        .fetch_one(connection)
+        .fetch_one(&mut **connection)
         .await?;
 
         self.id = record.id;
@@ -81,7 +81,7 @@ WHERE id = $1
             self.channel,
             self.power_level,
         )
-        .execute(connection)
+        .execute(&mut **connection)
         .await?;
 
         Ok(())
@@ -103,7 +103,7 @@ SELECT
 FROM stations
 "#
         )
-        .fetch_all(connection)
+        .fetch_all(&mut **connection)
         .await?;
 
         let mut station_map = HashMap::new();

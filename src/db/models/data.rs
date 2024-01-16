@@ -27,7 +27,7 @@ UPDATE SET bytes_per_minute = data.bytes_per_minute + $5",
             self.bytes_per_minute,
             self.bytes_per_minute,
         )
-        .execute(connection)
+        .execute(&mut **connection)
         .await?;
 
         Ok(())

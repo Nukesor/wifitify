@@ -23,7 +23,7 @@ ON CONFLICT DO NOTHING
             self.device,
             self.station,
         )
-        .execute(connection)
+        .execute(&mut **connection)
         .await?;
 
         Ok(())
@@ -44,7 +44,7 @@ WHERE station = $1 AND device = $2
             station_id,
             device_id,
         )
-        .fetch_optional(connection)
+        .fetch_optional(&mut **connection)
         .await?;
 
         Ok(record)
@@ -54,7 +54,7 @@ WHERE station = $1 AND device = $2
         connection: &mut Connection,
     ) -> Result<HashMap<i32, HashSet<i32>>> {
         let rows = sqlx::query_as!(DeviceStation, "SELECT * FROM devices_stations")
-            .fetch_all(connection)
+            .fetch_all(&mut **connection)
             .await?;
 
         let mut map = HashMap::new();

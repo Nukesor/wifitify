@@ -34,7 +34,7 @@ WHERE mac_address = $1
 "#,
             mac_address.to_string()
         )
-        .fetch_optional(connection)
+        .fetch_optional(&mut **connection)
         .await?;
 
         Ok(device)
@@ -52,7 +52,7 @@ RETURNING id
             self.nickname.clone(),
             self.description.clone(),
         )
-        .fetch_one(connection)
+        .fetch_one(&mut **connection)
         .await?;
 
         self.id = record.id;
@@ -71,7 +71,7 @@ SELECT
     watch
 FROM devices"#
         )
-        .fetch_all(connection)
+        .fetch_all(&mut **connection)
         .await?;
 
         let mut device_map = HashMap::new();
