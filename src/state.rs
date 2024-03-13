@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
-use chrono::{DateTime, Duration, Utc};
+use chrono::TimeDelta;
+use chrono::{DateTime, Utc};
 use log::info;
 
 use crate::config::Config;
@@ -37,7 +38,7 @@ impl AppState {
         // That way we start with a sweep right away.
         let last_full_sweep = Utc::now();
         let last_channel_switch = Utc::now()
-            .checked_sub_signed(Duration::hours(2))
+            .checked_sub_signed(TimeDelta::try_hours(2).unwrap())
             .expect("This should happen.");
 
         let mut state = AppState {
@@ -83,13 +84,13 @@ impl AppState {
     /// Returns, whether it's time to do the next full sweep.
     pub fn should_sweep(&self) -> bool {
         (Utc::now() - self.last_full_sweep)
-            > Duration::seconds(self.config.collector.time_between_sweeps)
+            > TimeDelta::try_seconds(self.config.collector.time_between_sweeps).unwrap()
     }
 
     /// If this is called, a new full sweep will be started in the next iteration step.
     pub fn schedule_sweep(&mut self) {
         self.last_full_sweep = Utc::now()
-            .checked_sub_signed(Duration::hours(2))
+            .checked_sub_signed(TimeDelta::try_hours(2).unwrap())
             .expect("This shouldn't happen.");
     }
 
@@ -97,10 +98,11 @@ impl AppState {
     pub fn should_switch_channel(&self) -> bool {
         if self.should_sweep() {
             (Utc::now() - self.last_channel_switch)
-                > Duration::milliseconds(self.config.collector.sweep_channel_switch_timeout)
+                > TimeDelta::try_milliseconds(self.config.collector.sweep_channel_switch_timeout)
+                    .unwrap()
         } else {
             (Utc::now() - self.last_channel_switch)
-                > Duration::milliseconds(self.config.collector.channel_switch_timeout)
+                > TimeDelta::try_milliseconds(self.config.collector.channel_switch_timeout).unwrap()
         }
     }
 
