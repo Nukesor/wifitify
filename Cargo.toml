@@ -14,8 +14,7 @@ clap = { version = "4", features = ["derive", "cargo"] }
 crossbeam-channel = "0.5"
 dirs = "5"
 futures = "0.3"
-#libwifi = { path = "../../libraries/libwifi/libwifi" }
-libwifi = "0.3"
+libwifi = { version = "0.3",  path = "../../libraries/libwifi/libwifi" }
 log = "0.4"
 pcap = { version = "2", features = ['capture-stream'] }
 pretty_env_logger = "0.5"
