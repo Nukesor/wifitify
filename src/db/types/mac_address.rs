@@ -1,6 +1,5 @@
 use anyhow::Result;
 use libwifi::frame::components::{MacAddress as LibWifiMacAddress, MacParseError};
-use sqlx::database::HasValueRef;
 use sqlx::{Database, Decode};
 
 use std::str::FromStr;
@@ -37,7 +36,7 @@ where
     &'r str: Decode<'r, DB>,
 {
     fn decode(
-        value: <DB as HasValueRef<'r>>::ValueRef,
+        value: <DB as Database>::ValueRef<'r>,
     ) -> Result<MacAddress, Box<dyn std::error::Error + 'static + Send + Sync>> {
         // Get the value as String from the database
         let value = <&str as Decode<DB>>::decode(value)?;
